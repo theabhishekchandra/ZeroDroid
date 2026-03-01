@@ -85,7 +85,19 @@ ZeroDroid consolidates **27 tools** into one app. Every tool solves a specific, 
 
 ## Screenshots
 
-*Dashboard with device info, hardware grid, and toolkit* | *WiFi Analyzer with channel chart* | *Terminal-styled navigation drawer*
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="250" alt="Dashboard — device info and hardware grid" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/toolkit.png" width="250" alt="Toolkit — feature tiles by category" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/drawer.png" width="250" alt="Navigation drawer" />
+</p>
+
+<p align="center">
+  <em>Dashboard</em> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <em>Toolkit</em> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <em>Navigation</em>
+</p>
 
 ---
 
@@ -897,4 +909,4 @@ Declining the agreement exits the app.
 
 ## License
 
-All rights reserved. This software is proprietary.
+This project is licensed under the [MIT License](LICENSE).
