@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Shield outline - main shape -->
+    <!-- Shield: rounded top, pointed bottom, centered at 54,54 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00FF41"
+        android:strokeWidth="2.5"
+        android:pathData="
+            M54,24
+            L76,32
+            Q78,33 78,35
+            L78,55
+            Q78,68 54,82
+            Q30,68 30,55
+            L30,35
+            Q30,33 32,32
+            Z" />
+
+    <!-- Shield fill (very subtle dark green) -->
+    <path
+        android:fillColor="#0D1F0D"
+        android:pathData="
+            M54,26
+            L75,33.5
+            Q76.5,34.2 76.5,35.5
+            L76.5,55
+            Q76.5,67 54,80
+            Q31.5,67 31.5,55
+            L31.5,35.5
+            Q31.5,34.2 33,33.5
+            Z" />
+
+    <!-- "Z" letterform inside shield - bold terminal style -->
+    <!-- Top horizontal bar -->
+    <path
+        android:fillColor="#00FF41"
+        android:pathData="M40,40 L68,40 L68,44 L40,44 Z" />
+
+    <!-- Diagonal slash -->
+    <path
+        android:fillColor="#00FF41"
+        android:pathData="M60,44 L68,44 L48,66 L40,66 Z" />
+
+    <!-- Bottom horizontal bar -->
+    <path
+        android:fillColor="#00FF41"
+        android:pathData="M40,66 L68,66 L68,70 L40,70 Z" />
+
+    <!-- Small scan dot (blinking cursor effect) - bottom right of Z -->
+    <path
+        android:fillColor="#00FF41"
+        android:pathData="M70,66 L73,66 L73,70 L70,70 Z" />
+
+    <!-- Subtle glow around shield (outer green halo) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#1A00FF41"
+        android:strokeWidth="1.5"
+        android:pathData="
+            M54,21
+            L79,30
+            Q81,31 81,33
+            L81,56
+            Q81,71 54,85
+            Q27,71 27,56
+            L27,33
+            Q27,31 29,30
+            Z" />
+</vector>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="288"
+    android:viewportHeight="288">
+
+    <!-- Shield outline -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00FF41"
+        android:strokeWidth="5"
+        android:pathData="
+            M144,54
+            L208,74
+            Q212,75.5 212,79
+            L212,148
+            Q212,182 144,216
+            Q76,182 76,148
+            L76,79
+            Q76,75.5 80,74
+            Z" />
+
+    <!-- Shield fill (dark green) -->
+    <path
+        android:fillColor="#0D1F0D"
+        android:pathData="
+            M144,59
+            L205,78
+            Q208,79 208,82
+            L208,148
+            Q208,179 144,211
+            Q80,179 80,148
+            L80,82
+            Q80,79 83,78
+            Z" />
+
+    <!-- Outer glow ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#1A00FF41"
+        android:strokeWidth="3"
+        android:pathData="
+            M144,46
+            L216,68
+            Q220,69.5 220,73
+            L220,152
+            Q220,190 144,226
+            Q68,190 68,152
+            L68,73
+            Q68,69.5 72,68
+            Z" />
+
+    <!-- Z - top bar -->
+    <path
+        android:fillColor="#00FF41"
+        android:pathData="M106,106 L182,106 L182,117 L106,117 Z" />
+
+    <!-- Z - diagonal -->
+    <path
+        android:fillColor="#00FF41"
+        android:pathData="M164,117 L182,117 L124,176 L106,176 Z" />
+
+    <!-- Z - bottom bar -->
+    <path
+        android:fillColor="#00FF41"
+        android:pathData="M106,176 L182,176 L182,187 L106,187 Z" />
+
+    <!-- Terminal cursor dot -->
+    <path
+        android:fillColor="#00FF41"
+        android:pathData="M188,176 L196,176 L196,187 L188,187 Z" />
+</vector>

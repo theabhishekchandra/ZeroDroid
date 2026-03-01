@@ -1,0 +1,63 @@
+<resources>
+    <string name="app_name">ZeroDroid</string>
+
+    <!-- Feature labels -->
+    <string name="feature_sensors">Sensor Dashboard</string>
+    <string name="feature_wifi">WiFi Analyzer</string>
+    <string name="feature_ble">BLE Scanner</string>
+    <string name="feature_nfc">NFC Tools</string>
+    <string name="feature_ir">IR Remote</string>
+    <string name="feature_uwb">UWB Radar</string>
+    <string name="feature_usb">USB Devices</string>
+    <string name="feature_sdr">SDR Radio</string>
+    <string name="feature_camera">QR Scanner</string>
+    <string name="feature_ultrasonic">Ultrasonic</string>
+    <string name="feature_wardriving">Wardriving</string>
+    <string name="feature_wifi_aware">Wi-Fi Aware</string>
+    <string name="feature_cell_tower">Cell Tower</string>
+    <string name="feature_usb_camera">USB Camera</string>
+    <string name="feature_gps">GPS Tracker</string>
+    <string name="feature_bluetooth_classic">Bluetooth Classic</string>
+    <string name="feature_wifi_direct">Wi-Fi Direct</string>
+    <string name="feature_hidden_camera">Camera Detector</string>
+    <string name="feature_gps_spoof_detector">GPS Spoof Detector</string>
+    <string name="feature_bluetooth_tracker">Tracker Scanner</string>
+    <string name="feature_rogue_ap">Rogue AP Detector</string>
+    <string name="feature_network_scanner">Network Scanner</string>
+    <string name="feature_rf_bug_sweeper">RF Bug Sweeper</string>
+    <string name="feature_proximity_radar">Proximity Radar</string>
+    <string name="feature_privacy_score">Privacy Score</string>
+    <string name="feature_deauth_detector">Deauth Detector</string>
+    <string name="feature_emf_mapper">EMF Mapper</string>
+    <string name="feature_signal_logger">Signal Logger</string>
+
+    <!-- HCE -->
+    <string name="hce_service_description">ZeroDroid NFC Card Emulation</string>
+    <string name="hce_aid_group_description">NDEF Tag Emulation</string>
+
+    <!-- Categories -->
+    <string name="category_wireless">Wireless</string>
+    <string name="category_rf">RF &amp; Signals</string>
+    <string name="category_sensors">Sensors</string>
+    <string name="category_network">Network</string>
+
+    <!-- Permission rationales -->
+    <string name="permission_ble">Bluetooth permission is needed to scan for nearby BLE devices.</string>
+    <string name="permission_wifi">Location permission is needed to scan WiFi networks (Android requirement).</string>
+    <string name="permission_camera">Camera permission is needed for QR code scanning.</string>
+    <string name="permission_phone">Phone state permission is needed to read cell tower information.</string>
+
+    <!-- Ethical use -->
+    <string name="ethical_title">Responsible Use Agreement</string>
+    <string name="ethical_message">ZeroDroid is a hardware exploration tool for educational purposes. You agree to:\n\n\u2022 Only scan devices and networks you own or have permission to test\n\u2022 Not use this tool for unauthorized access or surveillance\n\u2022 Comply with all applicable local laws and regulations\n\nMisuse of wireless scanning tools may violate federal and state laws.</string>
+    <string name="ethical_accept">I Agree</string>
+    <string name="ethical_decline">Decline</string>
+
+    <!-- General -->
+    <string name="coming_soon">Coming in Phase 2</string>
+    <string name="hardware_available">Hardware Available</string>
+    <string name="hardware_unavailable">Hardware Not Available</string>
+    <string name="scan">Scan</string>
+    <string name="stop">Stop</string>
+    <string name="no_data">No data available</string>
+</resources>
