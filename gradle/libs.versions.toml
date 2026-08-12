@@ -19,7 +19,7 @@ camerax = "1.6.1"
 coreUwb = "1.0.0"
 mlkitBarcode = "17.3.0"
 playServicesLocation = "21.4.0"
-zxingCore = "3.5.3"
+zxingCore = "3.5.4"
 splashscreen = "1.2.0"
 
 [libraries]
