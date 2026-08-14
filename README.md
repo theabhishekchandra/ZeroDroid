@@ -37,6 +37,10 @@
   <a href="#-contributing">🤝 Contributing</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/theabhishekchandra/ZeroDroid/releases/latest"><img alt="Download latest release" src="https://img.shields.io/badge/⬇️%20Download%20Latest%20Release-00C853?style=for-the-badge&labelColor=0D1117" /></a>
+</p>
+
 ---
 
 ## ⚡ At a Glance
@@ -114,7 +118,7 @@ Every tool solves a specific, real problem. Full step-by-step docs live in the *
 | **IR Remote** | Pre-built Samsung/LG/Sony remotes, custom protocols, Flipper Zero `.ir` import |
 | **UWB Radar** | FiRa compliance & capability check (ranging, AoA, ToF) |
 | **SDR Radio** | Detects RTL-SDR, HackRF, AirSpy dongles via USB OTG |
-| **Ultrasonic Analyzer** | FFT spectrum of 18–24 kHz to detect tracking beacons |
+| **Ultrasonic Analyzer** | FFT spectrum of 18–24 kHz to flag possible ultrasonic tracking beacons |
 </details>
 
 <details>
@@ -135,7 +139,7 @@ Every tool solves a specific, real problem. Full step-by-step docs live in the *
 | Tool | What it does |
 |------|--------------|
 | **USB Devices** | Full USB inspection + BadUSB (HID + Mass Storage) detection |
-| **Cell Tower Analyzer** | Monitors towers; detects IMSI catchers (LAC change, signal spike, 2G downgrade) |
+| **Cell Tower Analyzer** | Monitors towers; flags possible IMSI catchers (indicators: LAC change, signal spike, 2G downgrade) |
 | **Wardriving** | Background GPS+WiFi logging with WiGLE CSV export |
 </details>
 
@@ -146,13 +150,13 @@ Every tool solves a specific, real problem. Full step-by-step docs live in the *
 |------|--------------|
 | **Hidden Camera Detector** | 5 methods: WiFi OUI, SSID, BLE, magnetometer, port scan |
 | **GPS Spoof Detector** | 7 cross-validation checks (GPS vs cell/WiFi/barometer/accelerometer) |
-| **Tracker Scanner** | Identifies AirTag, SmartTag, Tile, Chipolo, Pebblebee by signature |
+| **Tracker Scanner** | Flags devices matching known AirTag, SmartTag, Tile, Chipolo, Pebblebee signatures |
 | **Rogue AP Detector** | 6 algorithms: evil twin, SSID spoofing, karma, open impersonator |
 | **Network Scanner** | Subnet-wide port scan, banner grabbing, vulnerability assessment |
 | **RF Bug Sweeper** | BLE module + ultrasonic + magnetic anomaly sweep |
 | **Proximity Radar** | Visual radar plotting devices by estimated distance & signal |
 | **Privacy Score** | 16+ checks across WiFi, Bluetooth, device, network & physical security |
-| **Deauth Detector** | Detects deauth floods, jamming, AP disappearance, channel hopping |
+| **Deauth Detector** | Flags possible deauth floods, jamming, AP disappearance, channel hopping |
 | **Signal Logger** | Continuous WiFi+BLE timeline with arrival/departure tracking |
 | **Alert Center** | Unified, persisted feed of every threat raised by the other Security tools |
 </details>
@@ -162,6 +166,15 @@ Every tool solves a specific, real problem. Full step-by-step docs live in the *
 ## ⬇️ Download & Build
 
 > 📦 Prebuilt APK releases are on the [Releases](https://github.com/theabhishekchandra/ZeroDroid/releases) page. To build from source:
+
+### 📲 Install via Obtainium
+
+[Obtainium](https://github.com/ImranR98/Obtainium) tracks ZeroDroid's GitHub Releases directly on your device and notifies you of new versions — no app store needed.
+
+1. Install [Obtainium](https://github.com/ImranR98/Obtainium) (F-Droid or its own GitHub Releases).
+2. Tap **Add App** and paste: `https://github.com/theabhishekchandra/ZeroDroid`
+3. Obtainium detects the GitHub source automatically and pulls the latest release APK.
+4. Enable auto-updates or check manually — Obtainium will flag when a new release is out.
 
 ### Prerequisites
 - Android Studio **Ladybug (2025.1+)** or newer

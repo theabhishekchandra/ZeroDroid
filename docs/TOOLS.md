@@ -386,12 +386,12 @@ For the project overview, screenshots, and setup, see the [main README](../READM
 
 **5 detection methods:**
 
-| Method | How It Works | What It Catches |
+| Method | How It Works | What It Flags |
 |--------|-------------|-----------------|
-| WiFi OUI | Checks MAC address prefixes against 30+ camera manufacturers (Hikvision, Dahua, Wyze, Ring, Nest, Arlo, etc.) | WiFi-connected cameras |
+| WiFi OUI | Checks MAC address prefixes against 30+ camera manufacturers (Hikvision, Dahua, Wyze, Ring, Nest, Arlo, etc.) | Possible WiFi-connected cameras |
 | WiFi SSID | Pattern matches network names for camera keywords | Cameras with default SSIDs |
-| BLE Scan | Identifies camera-related BLE advertisements by name and OUI | Bluetooth-enabled cameras |
-| Magnetometer | Detects magnetic anomalies >15 uT from baseline | Electronic devices hidden in walls/objects |
+| BLE Scan | Matches BLE advertisements against known camera name/OUI patterns | Possible Bluetooth-enabled cameras |
+| Magnetometer | Flags magnetic anomalies >15 uT from baseline | Possible electronic devices hidden in walls/objects |
 | Port Scan | Probes for RTSP (554, 8554), ONVIF (3702), HTTP (80, 8080) | Network cameras streaming video |
 
 ---
@@ -491,11 +491,11 @@ Overall confidence score aggregated from all checks.
 
 **3 detection methods combined:**
 
-| Method | What It Detects | Threshold |
+| Method | What It Flags | Threshold |
 |--------|----------------|-----------|
 | BLE Module Detection | Common RF modules: HC-05, HC-06, JDY, HM-10, ESP32, nRF5x, CC254x; suspicious OUI prefixes; strong unnamed devices | Name patterns + manufacturer data |
-| Ultrasonic Beacon | Hidden acoustic transmitters in 18-24 kHz range | Energy spikes in FFT spectrum |
-| Magnetic Anomaly | Electronic devices behind walls/furniture | >25 uT deviation from baseline |
+| Ultrasonic Beacon | Possible hidden acoustic transmitters in 18-24 kHz range | Energy spikes in FFT spectrum |
+| Magnetic Anomaly | Possible electronic devices behind walls/furniture | >25 uT deviation from baseline |
 
 ---
 
