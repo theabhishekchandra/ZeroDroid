@@ -63,12 +63,21 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - UI/hardware-dependent behavior should be manually verified on a physical device before
   opening a PR — note which device you tested on.
 
+## Branching model
+
+- **`develop`** is the default branch — all active work happens here.
+- **`main`** is the stable/release branch. It only moves forward via a PR from `develop`
+  and is protected (PR + passing CI required, enforced even for admins, linear history only).
+- `develop` is also protected: direct pushes require a PR, and the `build` CI check
+  (lint, unit tests, debug assemble) must pass before merging.
+
 ## Submitting a PR
 
-1. Fork the repo and create a feature branch: `git checkout -b feature/my-tool`
+1. Fork the repo and branch off `develop`: `git checkout -b feature/my-tool develop`
 2. Keep the change focused — unrelated refactors/formatting make review harder.
 3. Run `./gradlew test` and `./gradlew assembleDebug` locally.
-4. Open a PR describing what changed and how you verified it (the PR template will prompt you).
+4. Open a PR **into `develop`** (not `main`) describing what changed and how you verified it
+   (the PR template will prompt you).
 
 ## Code of Conduct
 

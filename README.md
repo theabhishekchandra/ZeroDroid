@@ -442,17 +442,43 @@ Declining the agreement exits the app.
 
 ---
 
+## 🌳 Branching & Workflow
+
+ZeroDroid uses a two-branch model — no one pushes directly to a protected branch, everything goes through a PR with CI passing.
+
+| Branch | Purpose | Protection |
+|--------|---------|------------|
+| **`develop`** | Default branch — all active work happens here | PR + passing `build` CI required · no force-push/delete |
+| **`main`** | Stable/release branch — only updated from `develop` | PR + passing `build` CI required, **enforced for everyone including admins** · linear history only (squash/rebase) · no force-push/delete |
+
+**Contributor flow:**
+
+```bash
+git checkout develop
+git pull
+git checkout -b feature/my-tool develop
+# ...make changes...
+git push -u origin feature/my-tool
+# open a PR into develop
+```
+
+- New work branches off **`develop`** and PRs target **`develop`**, not `main`.
+- `main` only moves forward via a PR from `develop` (release cuts), never a direct push or a PR from a feature branch.
+- Every PR must pass the `build` CI check (lint, unit tests, debug assemble) before it can merge.
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome — bug reports, new tool ideas, hardware compatibility notes, and pull requests.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (dev setup, project conventions, adding a
 new tool, testing expectations). Short version:
 
-1. **Fork** the repo and create a feature branch: `git checkout -b feature/my-tool`
+1. **Fork** the repo and create a feature branch off `develop`: `git checkout -b feature/my-tool develop`
 2. Follow the existing feature structure (`domain/` → `data/` → `ui/` → `viewmodel/`) — keep Android UI imports out of `domain/`.
 3. Match the code style: Kotlin, MVVM, StateFlow, Jetpack Compose, JetBrains Mono terminal aesthetic, Hilt for DI.
 4. Test on a **physical device** — most features depend on real hardware.
-5. Commit with a clear message and open a **pull request** describing what changed and how you verified it.
+5. Commit with a clear message and open a **pull request into `develop`** describing what changed and how you verified it.
 
 When adding a new tool: register its screen in `navigation/ZeroDroidScreen.kt`, wire any new
 service into the relevant `core/di/*Module.kt`, and document it in [`docs/TOOLS.md`](docs/TOOLS.md).
