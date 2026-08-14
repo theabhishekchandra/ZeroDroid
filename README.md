@@ -223,13 +223,13 @@ Android **requires** location permission to return WiFi and Bluetooth scan resul
 <details>
 <summary><b>Will every tool work on my phone?</b></summary>
 
-No — tools depend on your hardware (IR blaster, UWB, barometer, etc. aren't on every device). The **Dashboard shows exactly which capabilities your device has** so you know what will work. See [Hardware Compatibility](#-hardware-compatibility).
+No — tools depend on your hardware (IR blaster, UWB, barometer, etc. aren't on every device). The **Dashboard shows exactly which capabilities your device has** so you know what will work. See [Hardware Compatibility](docs/HARDWARE.md).
 </details>
 
 <details>
 <summary><b>Does it drain my battery?</b></summary>
 
-No. Nothing scans until you tap start, every scanner auto-stops after a timeout, and all services are lazy-loaded. The home screen costs effectively zero battery. See [Battery Optimization](#-battery-optimization).
+No. Nothing scans until you tap start, every scanner auto-stops after a timeout, and all services are lazy-loaded. The home screen costs effectively zero battery. See [Battery Optimization](docs/BATTERY.md).
 </details>
 
 <details>
@@ -242,113 +242,25 @@ Everything runs on-device. There's no login and no account. Permissions are requ
 
 ## 🏗️ Architecture
 
-<details>
-<summary><b>App structure & key design decisions</b></summary>
-
-```
-ZeroDroidApp (@HiltAndroidApp Application)
- └── Hilt DI (core/di/*Module.kt — services scoped per module, most unscoped/fresh-per-use)
-      ├── SystemServiceModule (SensorManager, WifiManager, BluetoothManager, ...)
-      ├── HardwareModule (HardwareChecker — 16 capability queries)
-      ├── DatabaseModule (Room, 5 entities: BLE, NFC, Wardriving, QR, Alert)
-      ├── FeatureModule (~25 domain/repository classes across every tool)
-      └── PreferencesModule, NfcTagBus
-
-Navigation: Jetpack Navigation Compose + ModalNavigationDrawer
-Pattern: MVVM (Screen → @HiltViewModel → Domain → Hardware)
-UI: Jetpack Compose + Material 3 (dark terminal theme)
-Font: JetBrains Mono throughout
-```
-
-**Key design decisions:**
-
-- **All services are lazy-initialized.** Nothing starts until you navigate to that feature. The app launches to a zero-cost Dashboard.
-- **No auto-start scanning.** Every scanner requires a manual tap to start, and auto-stops after a timeout (sensors: 60s, WiFi/BLE: 30s).
-- **No `saveState` in navigation.** When you leave a screen, its `DisposableEffect.onDispose` fires and scanning stops immediately.
-- **Sensor polling at 5Hz, not 60Hz.** `SENSOR_DELAY_NORMAL` instead of `SENSOR_DELAY_UI` — 12x fewer events with no visible difference.
-- **BLE uses `SCAN_MODE_LOW_POWER`** instead of `LOW_LATENCY` — 10x less battery drain.
-
-Each feature follows the same structure:
-```
-feature/
-├── domain/      # Business logic, scanners, analyzers (no Android UI imports)
-├── data/        # Repositories (if Room persistence needed)
-├── ui/          # Composable screens and components
-└── viewmodel/   # @HiltViewModel with @Inject constructor
-```
-</details>
+MVVM (`Screen → @HiltViewModel → Domain → Hardware`), Hilt DI, all services lazy-initialized, no auto-start scanning. Full design decisions and directory layout: **[📖 Architecture Guide →](docs/ARCHITECTURE.md)**
 
 ---
 
 ## 🔋 Battery Optimization
 
-<details>
-<summary><b>How ZeroDroid stays at zero idle battery</b></summary>
-
-| Optimization | Before | After | Impact |
-|-------------|--------|-------|--------|
-| Home screen | SensorScreen (6 sensors at 60Hz) | Dashboard (static Build info) | ~360 events/sec → 0 |
-| Sensor polling | `SENSOR_DELAY_UI` (60Hz) | `SENSOR_DELAY_NORMAL` (5Hz) | 12x fewer events |
-| BLE scan mode | `SCAN_MODE_LOW_LATENCY` | `SCAN_MODE_LOW_POWER` | ~10x less battery |
-| Auto-start | Sensors + WiFi start on screen load | Manual start button required | No scanning unless you ask |
-| Auto-stop | Never (runs forever) | Sensors: 60s, WiFi: 30s, BLE: 30s | Forgotten scans can't drain battery |
-| Service init | 25+ services created at app launch | All `by lazy` (created on first use) | Startup cost → near zero |
-| Navigation | `saveState=true` (keeps disposed screens alive) | No saveState (dispose fires on navigate away) | Scanners stop when you leave |
-</details>
+Zero idle battery: no auto-start scanning, 5Hz sensor polling, `SCAN_MODE_LOW_POWER` BLE, everything auto-stops and lazy-loads. Full before/after breakdown: **[📖 Battery Optimization →](docs/BATTERY.md)**
 
 ---
 
 ## 🔐 Permissions
 
-ZeroDroid requests permissions **only when you open a feature that needs them** — nothing at startup.
-
-<details>
-<summary><b>Full permission list</b></summary>
-
-| Permission | Required By | Why |
-|-----------|-------------|-----|
-| `BLUETOOTH_SCAN` | BLE Scanner, Tracker Scanner, RF Bug Sweeper, Proximity Radar, Hidden Camera, Privacy Score | Discover Bluetooth devices |
-| `BLUETOOTH_CONNECT` | BLE Scanner (GATT), Bluetooth Classic, NFC (HCE), RF Bug Sweeper | Connect to devices |
-| `ACCESS_FINE_LOCATION` | WiFi Analyzer, GPS Tracker, Wardriving, Cell Tower, Rogue AP, Proximity Radar, GPS Spoof, Hidden Camera | Android requires location for WiFi/BLE scanning |
-| `ACCESS_COARSE_LOCATION` | Fallback for location-based features | Approximate location |
-| `ACCESS_WIFI_STATE` | WiFi Analyzer, Network Scanner, Deauth Detector | Read WiFi scan results |
-| `CHANGE_WIFI_STATE` | WiFi Analyzer | Trigger WiFi scans |
-| `NEARBY_WIFI_DEVICES` | Wi-Fi Direct (API 33+) | Discover WiFi Direct peers |
-| `CAMERA` | QR Scanner, Hidden Camera (port scan uses camera preview) | Camera access for scanning |
-| `NFC` | NFC Tools | Read/write NFC tags |
-| `TRANSMIT_IR` | IR Remote | Send infrared commands |
-| `READ_PHONE_STATE` | Cell Tower, GPS Spoof Detector | Access cell tower data |
-| `RECORD_AUDIO` | Ultrasonic Analyzer, RF Bug Sweeper, Privacy Score | Microphone for ultrasonic detection |
-| `FOREGROUND_SERVICE` | Wardriving | Background scanning service |
-| `POST_NOTIFICATIONS` | Wardriving (API 33+) | Foreground service notification |
-| `UWB_RANGING` | UWB Radar | Ultra-wideband distance ranging (API 31+) |
-</details>
+ZeroDroid requests permissions **only when you open a feature that needs them** — nothing at startup. Full permission-by-permission breakdown: **[📖 Permissions →](docs/PERMISSIONS.md)**
 
 ---
 
 ## 📱 Hardware Compatibility
 
-Not all phones have all hardware. The Dashboard shows which capabilities your device has.
-
-<details>
-<summary><b>Hardware → feature matrix</b></summary>
-
-| Hardware | Common Availability | Features That Need It |
-|----------|-------------------|----------------------|
-| WiFi | All phones | WiFi Analyzer, Wardriving, Rogue AP, Network Scanner, Deauth Detector |
-| Bluetooth/BLE | All modern phones | BLE Scanner, Bluetooth Classic, Tracker Scanner, RF Bug Sweeper |
-| NFC | Most flagship phones | NFC Tools |
-| GPS | All phones | GPS Tracker, Wardriving, GPS Spoof Detector |
-| Camera | All phones | QR Scanner, Hidden Camera |
-| Accelerometer | All phones | Sensor Dashboard, GPS Spoof Detector |
-| Magnetometer | Most phones | Compass, Metal Detector, EMF Mapper, RF Bug Sweeper |
-| Gyroscope | Most phones | Sensor Dashboard |
-| Barometer | Some phones | Floor estimation, GPS Spoof Detector |
-| Consumer IR | Some Samsung, Xiaomi, Huawei | IR Remote |
-| UWB | Pixel 6 Pro+, Samsung S21+ | UWB Radar |
-| Wi-Fi Aware | Limited devices | Wi-Fi Aware |
-| USB Host | Most phones with OTG | USB Devices, SDR Radio, USB Camera |
-</details>
+Not all phones have all hardware. The Dashboard shows which capabilities your device has. Full hardware → feature matrix: **[📖 Hardware Compatibility →](docs/HARDWARE.md)**
 
 ---
 
@@ -386,45 +298,6 @@ Not all phones have all hardware. The Dashboard shows which capabilities your de
 | Permissions | Accompanist Permissions |
 | Build | Gradle 9.7.0, AGP 9.3.1 |
 | Min / Target SDK | 26 (Android 8.0) / 37 |
-</details>
-
----
-
-## 📂 Project Structure
-
-<details>
-<summary><b>Directory layout</b></summary>
-
-```
-app/src/main/java/com/abhishek/zerodroid/
-├── MainActivity.kt                  # Entry point (@AndroidEntryPoint), NFC intent handling
-├── ZeroDroidApp.kt                  # Application class (@HiltAndroidApp)
-├── core/
-│   ├── alerts/                      # Alert Center: AlertModels, AlertCenterRepository
-│   ├── database/                    # Room DB, DAOs, entities, converters
-│   ├── di/                          # Hilt modules — SystemServiceModule, FeatureModule,
-│   │                                  DatabaseModule, HardwareModule, PreferencesModule, NfcTagBus
-│   ├── hardware/HardwareChecker.kt  # 16 hardware capability queries
-│   ├── permission/                  # PermissionGate composable, PermissionUtils
-│   ├── ui/                          # TerminalCard, EmptyState, ScanningIndicator,
-│   │                                  StatusIndicator, EthicalUseDialog, HelpContent
-│   └── util/                        # FrequencyUtils, ByteArrayExt
-├── features/                        # 29 tools — one package each (see below)
-│   ├── dashboard/  alert_center/  sensors/  wifi/  ble/  nfc/  bluetooth_classic/  ir/  uwb/
-│   ├── sdr/  ultrasonic/  usb/  usbcamera/  gps/  celltower/  wardriving/
-│   ├── wifi_direct/  wifiaware/  emf_mapper/  camera/  hidden_camera/
-│   ├── gps_spoof_detector/  bluetooth_tracker/  rogue_ap_detector/
-│   └── network_scanner/  rf_bug_sweeper/  proximity_radar/  privacy_score/
-│       deauth_detector/  signal_logger/
-├── navigation/
-│   ├── ZeroDroidScreen.kt          # 29 screen definitions, 5 categories
-│   ├── AppNavigation.kt            # NavHost + drawer + help system
-│   └── DrawerContent.kt            # Terminal-styled navigation drawer
-└── ui/theme/
-    ├── Color.kt                     # Terminal green, amber, red, cyan palette
-    ├── Theme.kt                     # Dark-only Material 3 theme
-    └── Type.kt                      # JetBrains Mono typography
-```
 </details>
 
 ---

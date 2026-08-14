@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for reporting a bug. Most ZeroDroid features depend on real hardware (BLE, NFC, UWB, IR, etc.) —
-        please double-check the [Hardware Compatibility](../../README.md#-hardware-compatibility) section first
+        please double-check the [Hardware Compatibility](../../docs/HARDWARE.md) doc first
         to rule out a device limitation before filing.
 
   - type: input
