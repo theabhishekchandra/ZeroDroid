@@ -41,6 +41,10 @@
   <a href="https://github.com/theabhishekchandra/ZeroDroid/releases/latest"><img alt="Download latest release" src="https://img.shields.io/badge/⬇️%20Download%20Latest%20Release-00C853?style=for-the-badge&labelColor=0D1117" /></a>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/demo.gif" alt="ZeroDroid demo — WiFi Analyzer, BLE Scanner, and Sensor Dashboard scanning real nearby networks and devices" width="320" />
+</p>
+
 ---
 
 ## ⚡ At a Glance
