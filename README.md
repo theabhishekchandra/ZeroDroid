@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.png" alt="ZeroDroid — Hardware Security Toolkit" width="100%" />
+  <img src="docs/banner.png" alt="ZeroDroid shield and wireless logo — Hardware Security Toolkit" width="100%" />
 </p>
 
 <h1 align="center">ZeroDroid</h1>
