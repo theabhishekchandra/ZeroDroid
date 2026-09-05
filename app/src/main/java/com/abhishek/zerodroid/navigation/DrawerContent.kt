@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.abhishek.zerodroid.BuildConfig
 import com.abhishek.zerodroid.ui.theme.TerminalGreen
 import com.abhishek.zerodroid.ui.theme.TerminalGreenDim
 import com.abhishek.zerodroid.ui.theme.TextDim
@@ -62,7 +63,7 @@ fun DrawerContent(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
             )
             Text(
-                text = "  // hardware toolkit v1.0",
+                text = "  // hardware toolkit v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextDim,
                 modifier = Modifier.padding(horizontal = 20.dp)
