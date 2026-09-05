@@ -54,6 +54,7 @@ private fun WifiContent(viewModel: WifiViewModel) {
     val channelScores by viewModel.channelScores.collectAsState()
     val selectedBand by viewModel.selectedBand.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
+    val scanError by viewModel.error.collectAsState()
 
     HardwareLifecycleEffect(
         isActive = isScanning,
@@ -130,6 +131,12 @@ private fun WifiContent(viewModel: WifiViewModel) {
                         Text("Scan", maxLines = 1, softWrap = false)
                     }
                 }
+            }
+        }
+
+        scanError?.let { message ->
+            item {
+                Text(text = message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }
 

@@ -83,7 +83,6 @@ class UsbCameraViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         openConnection?.close()
         openConnection = null
     }

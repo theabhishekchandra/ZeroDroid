@@ -152,7 +152,6 @@ class UwbViewModel @Inject constructor(
         input.trim().replace(":", "").replace(" ", "").uppercase()
 
     override fun onCleared() {
-        super.onCleared()
         stopRanging()
     }
 

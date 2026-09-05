@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
+import com.abhishek.zerodroid.core.ui.TerminalCard
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.features.celltower.viewmodel.CellTowerViewModel
@@ -87,6 +88,27 @@ private fun CellTowerContent(viewModel: CellTowerViewModel) {
         state.error?.let { error ->
             item {
                 Text(text = error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+
+        if (state.isMonitoring && state.currentCell == null && state.error == null) {
+            item {
+                TerminalCard {
+                    Text(
+                        text = if (state.simAbsent) "> No SIM card detected" else "> No registered cell yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = if (state.simAbsent) {
+                            "Without a SIM the phone only listens to nearby towers, so only neighbour cells and no serving cell can be shown."
+                        } else {
+                            "Waiting for the modem to register on a network. Neighbour cells appear below as they are heard."
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 

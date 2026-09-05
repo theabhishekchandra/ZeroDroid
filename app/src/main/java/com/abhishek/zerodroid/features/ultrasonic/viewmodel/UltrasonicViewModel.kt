@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 @HiltViewModel
 class UltrasonicViewModel @Inject constructor(
@@ -57,6 +58,7 @@ class UltrasonicViewModel @Inject constructor(
         _state.value = _state.value.copy(isTonePlaying = true)
         toneJob = viewModelScope.launch(Dispatchers.Default) {
             try { toneGenerator.start(frequency) }
+            catch (e: CancellationException) { throw e }
             catch (e: Exception) { _state.value = _state.value.copy(isTonePlaying = false, error = "Tone generation failed: ${e.message}") }
         }
     }
@@ -66,5 +68,5 @@ class UltrasonicViewModel @Inject constructor(
         _state.value = _state.value.copy(isTonePlaying = false)
     }
 
-    override fun onCleared() { super.onCleared(); stopAnalysis(); stopTone() }
+    override fun onCleared() { stopAnalysis(); stopTone() }
 }

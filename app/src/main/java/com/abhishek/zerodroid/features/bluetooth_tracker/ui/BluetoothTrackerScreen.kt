@@ -70,6 +70,7 @@ import com.abhishek.zerodroid.ui.theme.TerminalRedGlow
 import com.abhishek.zerodroid.ui.theme.TextDim
 import com.abhishek.zerodroid.ui.theme.TextPrimary
 import com.abhishek.zerodroid.ui.theme.TextSecondary
+import java.util.Locale
 
 @Composable
 fun BluetoothTrackerScreen(
@@ -465,5 +466,5 @@ private fun formatDuration(ms: Long): String {
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format("%02d:%02d elapsed", minutes, seconds)
+    return String.format(Locale.US, "%02d:%02d elapsed", minutes, seconds)
 }

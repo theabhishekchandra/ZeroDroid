@@ -166,7 +166,6 @@ class SensorViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopSensors()
     }
 }

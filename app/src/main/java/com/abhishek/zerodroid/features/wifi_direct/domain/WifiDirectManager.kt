@@ -41,15 +41,19 @@ class WifiDirectManager(private val context: Context) {
     @SuppressLint("MissingPermission")
     fun startDiscovery() {
         _state.value = _state.value.copy(isDiscovering = true, error = null)
-        manager?.discoverPeers(channel, object : WifiP2pManager.ActionListener {
-            override fun onSuccess() {}
-            override fun onFailure(reason: Int) {
-                _state.value = _state.value.copy(
-                    isDiscovering = false,
-                    error = "Discovery failed: ${failureReason(reason)}"
-                )
-            }
-        })
+        try {
+            manager?.discoverPeers(channel, object : WifiP2pManager.ActionListener {
+                override fun onSuccess() {}
+                override fun onFailure(reason: Int) {
+                    _state.value = _state.value.copy(
+                        isDiscovering = false,
+                        error = "Discovery failed: ${failureReason(reason)}"
+                    )
+                }
+            })
+        } catch (e: SecurityException) {
+            _state.value = _state.value.copy(isDiscovering = false, error = "Nearby devices permission is required for discovery")
+        }
     }
 
     fun stopDiscovery() {
@@ -59,16 +63,20 @@ class WifiDirectManager(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun requestPeers() {
-        manager?.requestPeers(channel) { peers: WifiP2pDeviceList? ->
-            val peerList = peers?.deviceList?.map { device ->
-                WifiDirectPeer(
-                    deviceName = device.deviceName ?: "Unknown",
-                    deviceAddress = device.deviceAddress,
-                    isGroupOwner = device.isGroupOwner,
-                    status = device.status
-                )
-            } ?: emptyList()
-            _state.value = _state.value.copy(peers = peerList)
+        try {
+            manager?.requestPeers(channel) { peers: WifiP2pDeviceList? ->
+                val peerList = peers?.deviceList?.map { device ->
+                    WifiDirectPeer(
+                        deviceName = device.deviceName ?: "Unknown",
+                        deviceAddress = device.deviceAddress,
+                        isGroupOwner = device.isGroupOwner,
+                        status = device.status
+                    )
+                } ?: emptyList()
+                _state.value = _state.value.copy(peers = peerList)
+            }
+        } catch (e: SecurityException) {
+            _state.value = _state.value.copy(error = "Nearby devices permission is required to list peers")
         }
     }
 
@@ -77,14 +85,18 @@ class WifiDirectManager(private val context: Context) {
         val config = WifiP2pConfig().apply {
             this.deviceAddress = deviceAddress
         }
-        manager?.connect(channel, config, object : WifiP2pManager.ActionListener {
-            override fun onSuccess() {}
-            override fun onFailure(reason: Int) {
-                _state.value = _state.value.copy(
-                    error = "Connection failed: ${failureReason(reason)}"
-                )
-            }
-        })
+        try {
+            manager?.connect(channel, config, object : WifiP2pManager.ActionListener {
+                override fun onSuccess() {}
+                override fun onFailure(reason: Int) {
+                    _state.value = _state.value.copy(
+                        error = "Connection failed: ${failureReason(reason)}"
+                    )
+                }
+            })
+        } catch (e: SecurityException) {
+            _state.value = _state.value.copy(error = "Nearby devices permission is required to connect")
+        }
     }
 
     fun disconnect() {

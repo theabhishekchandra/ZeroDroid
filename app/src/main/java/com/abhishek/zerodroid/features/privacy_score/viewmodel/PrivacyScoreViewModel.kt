@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 @HiltViewModel
 class PrivacyScoreViewModel @Inject constructor(
@@ -136,6 +137,8 @@ class PrivacyScoreViewModel @Inject constructor(
                     categoryScores = categoryScores,
                     lastScanTime = System.currentTimeMillis()
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isScanning = false,
@@ -172,6 +175,8 @@ class PrivacyScoreViewModel @Inject constructor(
                     .catch { emit(emptyList()) }
                     .first { it.isNotEmpty() }
             } ?: emptyList()
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             emptyList()
         }
@@ -191,6 +196,8 @@ class PrivacyScoreViewModel @Inject constructor(
                     }
             }
             devices
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             emptyList()
         }
@@ -205,7 +212,6 @@ class PrivacyScoreViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopScan()
     }
 }

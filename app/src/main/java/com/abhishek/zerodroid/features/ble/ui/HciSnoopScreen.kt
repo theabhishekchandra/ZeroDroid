@@ -57,6 +57,7 @@ import com.abhishek.zerodroid.ui.theme.TerminalAmber
 import com.abhishek.zerodroid.ui.theme.TerminalCyan
 import com.abhishek.zerodroid.ui.theme.TerminalGreen
 import com.abhishek.zerodroid.ui.theme.TerminalRed
+import java.util.Locale
 
 @Composable
 fun HciSnoopPanel(viewModel: HciSnoopViewModel) {
@@ -238,7 +239,7 @@ private fun LogInfoCard(log: HciSnoopLog, loadedFrom: String?) {
                 log.fileSize < 0 -> "unknown"
                 log.fileSize < 1024 -> "${log.fileSize} B"
                 log.fileSize < 1024 * 1024 -> "${log.fileSize / 1024} KB"
-                else -> String.format("%.1f MB", log.fileSize / (1024.0 * 1024.0))
+                else -> String.format(Locale.US, "%.1f MB", log.fileSize / (1024.0 * 1024.0))
             }
 
             val cmdCount = log.packets.count { it.packetType == HciPacketType.Command }
@@ -340,7 +341,7 @@ private fun PacketCard(packet: HciPacket) {
     val hours = (totalSeconds / 3600) % 24
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
-    val timeStr = String.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, millis)
+    val timeStr = String.format(Locale.US, "%02d:%02d:%02d.%03d", hours, minutes, seconds, millis)
 
     TerminalCard {
         Column(

@@ -113,7 +113,6 @@ class WifiAwareViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         service.detach()
     }
 

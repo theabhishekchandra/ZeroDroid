@@ -18,6 +18,7 @@ import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 data class HciSnoopState(
     val isLoading: Boolean = false,
@@ -40,7 +41,6 @@ class HciSnoopViewModel @Inject constructor(
     companion object {
         private val KNOWN_LOG_PATHS = listOf(
             "/data/misc/bluetooth/logs/btsnoop_hci.log",
-            "/sdcard/btsnoop_hci.log",
             "/data/log/bt/btsnoop_hci.log",
             "/storage/emulated/0/btsnoop_hci.log"
         )
@@ -79,6 +79,8 @@ class HciSnoopViewModel @Inject constructor(
                         )
                     }
                     return@launch
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     lastError = "$path: ${e.message}"
                 }
@@ -122,6 +124,8 @@ class HciSnoopViewModel @Inject constructor(
                         loadedFromPath = uri.lastPathSegment ?: uri.toString()
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update {
                     it.copy(

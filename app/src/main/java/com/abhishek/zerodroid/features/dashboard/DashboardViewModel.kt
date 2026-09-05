@@ -2,6 +2,7 @@ package com.abhishek.zerodroid.features.dashboard
 
 import android.content.SharedPreferences
 import android.os.Build
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abhishek.zerodroid.core.alerts.AlertCenterRepository
@@ -18,11 +19,25 @@ import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 data class DeviceInfo(
-    val model: String = "${Build.MANUFACTURER.uppercase()} ${Build.MODEL}",
-    val androidVersion: String = "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
-    val device: String = Build.DEVICE,
-    val board: String = Build.BOARD
-)
+    val model: String,
+    val androidVersion: String,
+    val device: String,
+    val board: String
+) {
+    companion object {
+        /**
+         * Reads the running device. Build fields are platform types that are null on the JVM,
+         * so every read is null-safe; the ViewModel takes a [DeviceInfo] instead of calling
+         * this directly so tests can supply a fixed one.
+         */
+        fun fromBuild(): DeviceInfo = DeviceInfo(
+            model = "${Build.MANUFACTURER?.uppercase().orEmpty()} ${Build.MODEL.orEmpty()}".trim(),
+            androidVersion = "${Build.VERSION.RELEASE.orEmpty()} (API ${Build.VERSION.SDK_INT})",
+            device = Build.DEVICE.orEmpty(),
+            board = Build.BOARD.orEmpty()
+        )
+    }
+}
 
 data class HardwareItem(
     val name: String,
@@ -38,10 +53,9 @@ data class LastUsedFeature(
 class DashboardViewModel @Inject constructor(
     private val hardwareChecker: HardwareChecker,
     @DashboardPrefs private val prefs: SharedPreferences,
-    alertCenterRepository: AlertCenterRepository
+    alertCenterRepository: AlertCenterRepository,
+    val deviceInfo: DeviceInfo
 ) : ViewModel() {
-
-    val deviceInfo = DeviceInfo()
 
     private val _hardwareItems = MutableStateFlow<List<HardwareItem>>(emptyList())
     val hardwareItems: StateFlow<List<HardwareItem>> = _hardwareItems.asStateFlow()
@@ -83,10 +97,10 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun saveLastUsed(route: String, title: String) {
-        prefs.edit()
-            .putString(KEY_LAST_ROUTE, route)
-            .putString(KEY_LAST_TITLE, title)
-            .apply()
+        prefs.edit {
+            putString(KEY_LAST_ROUTE, route)
+            putString(KEY_LAST_TITLE, title)
+        }
         _lastUsedFeature.value = LastUsedFeature(route, title)
     }
 

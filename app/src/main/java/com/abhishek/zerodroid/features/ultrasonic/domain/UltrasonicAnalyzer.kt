@@ -5,6 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -92,6 +93,10 @@ class UltrasonicAnalyzer {
 
                 delay(50) // ~20 FPS
             }
+        } catch (e: CancellationException) {
+            // Stop / screen leave: let the cancellation propagate instead of emitting into a
+            // cancelled flow, which the Flow contract rejects.
+            throw e
         } catch (e: Exception) {
             emit(UltrasonicState(error = e.message))
         } finally {

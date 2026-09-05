@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 @HiltViewModel
 class GpsSpoofViewModel @Inject constructor(
@@ -178,6 +179,8 @@ class GpsSpoofViewModel @Inject constructor(
                 results = resultHistory.toList(),
                 error = null
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             _state.value = _state.value.copy(
                 error = "Analysis error: ${e.message}"
@@ -207,7 +210,6 @@ class GpsSpoofViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopMonitoring()
     }
 }

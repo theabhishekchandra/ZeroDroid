@@ -2,6 +2,7 @@ package com.abhishek.zerodroid.core.di
 
 import android.content.Context
 import com.abhishek.zerodroid.core.hardware.HardwareChecker
+import com.abhishek.zerodroid.features.dashboard.DeviceInfo
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,4 +18,8 @@ object HardwareModule {
     @Singleton
     fun provideHardwareChecker(@ApplicationContext context: Context): HardwareChecker =
         HardwareChecker(context)
+
+    @Provides
+    @Singleton
+    fun provideDeviceInfo(): DeviceInfo = DeviceInfo.fromBuild()
 }

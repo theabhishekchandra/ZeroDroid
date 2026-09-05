@@ -173,7 +173,6 @@ class DeauthDetectorViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopMonitoring()
     }
 

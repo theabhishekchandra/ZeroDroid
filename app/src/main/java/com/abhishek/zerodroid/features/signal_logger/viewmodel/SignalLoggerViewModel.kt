@@ -115,9 +115,11 @@ class SignalLoggerViewModel @Inject constructor(
                     val currentBssids = accessPoints.map { it.bssid }.toSet()
                     val newEntries = mutableListOf<SignalLogEntry>()
 
-                    // Detect new WiFi APs
+                    // Detect new WiFi APs. The very first scan has no baseline, so nothing in it
+                    // counts as "new" (matching how entries are typed below).
                     val newAps = currentBssids - stats.previousWifiAps
                     val lostAps = stats.previousWifiAps - currentBssids
+                    val wifiBaselineExists = stats.previousWifiAps.isNotEmpty()
 
                     // Log an AP when it is first seen or reappears; re-logging every AP each
                     // cycle floods the timeline with duplicates and hides the real events.
@@ -204,7 +206,12 @@ class SignalLoggerViewModel @Inject constructor(
                     stats.previousWifiAps.clear()
                     stats.previousWifiAps.addAll(currentBssids)
 
-                    addEntries(newEntries, wifiApCount = accessPoints.size, newWifi = newAps.size, lostWifi = lostAps.size)
+                    addEntries(
+                        newEntries,
+                        wifiApCount = accessPoints.size,
+                        newWifi = if (wifiBaselineExists) newAps.size else 0,
+                        lostWifi = lostAps.size
+                    )
                 }
         }
     }
@@ -223,6 +230,7 @@ class SignalLoggerViewModel @Inject constructor(
 
                     val newDevices = currentAddresses - stats.previousBleDevices
                     val lostDevices = stats.previousBleDevices - currentAddresses
+                    val bleBaselineExists = stats.previousBleDevices.isNotEmpty()
 
                     // Log a device when it is first seen or reappears (see WiFi path above).
                     devices.forEach { device ->
@@ -297,7 +305,12 @@ class SignalLoggerViewModel @Inject constructor(
                     stats.previousBleDevices.clear()
                     stats.previousBleDevices.addAll(currentAddresses)
 
-                    addEntries(newEntries, bleDeviceCount = devices.size, newBle = newDevices.size, lostBle = lostDevices.size)
+                    addEntries(
+                        newEntries,
+                        bleDeviceCount = devices.size,
+                        newBle = if (bleBaselineExists) newDevices.size else 0,
+                        lostBle = lostDevices.size
+                    )
                 }
         }
     }
@@ -339,7 +352,6 @@ class SignalLoggerViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopLogging()
     }
 
