@@ -85,7 +85,6 @@ class BluetoothClassicViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopScan()
         sppManager.disconnect()
     }

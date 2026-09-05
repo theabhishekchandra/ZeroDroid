@@ -25,6 +25,7 @@ import com.abhishek.zerodroid.ui.theme.TerminalAmber
 import com.abhishek.zerodroid.ui.theme.TerminalCyan
 import com.abhishek.zerodroid.ui.theme.TerminalGreen
 import com.abhishek.zerodroid.ui.theme.TerminalRed
+import java.util.Locale
 
 @Composable
 fun WardrivingDashboard(stats: WardrivingStats, modifier: Modifier = Modifier) {
@@ -82,7 +83,7 @@ fun WardrivingDashboard(stats: WardrivingStats, modifier: Modifier = Modifier) {
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Canvas(modifier = Modifier.size(8.dp)) { drawCircle(TerminalRed) }
-                    Text("Open: ${stats.openCount} (${String.format("%.0f", stats.openPercent)}%)", style = MaterialTheme.typography.bodySmall, color = TerminalRed)
+                    Text("Open: ${stats.openCount} (${String.format(Locale.US, "%.0f", stats.openPercent)}%)", style = MaterialTheme.typography.bodySmall, color = TerminalRed)
                 }
             }
         }

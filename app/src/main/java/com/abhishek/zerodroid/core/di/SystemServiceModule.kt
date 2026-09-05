@@ -8,7 +8,6 @@ import android.hardware.usb.UsbManager
 import android.net.wifi.WifiManager
 import android.net.wifi.aware.WifiAwareManager
 import android.nfc.NfcAdapter
-import android.os.Build
 import android.telephony.TelephonyManager
 import dagger.Module
 import dagger.Provides
@@ -59,7 +58,5 @@ object SystemServiceModule {
     @Provides
     @Singleton
     fun provideWifiAwareManager(@ApplicationContext context: Context): WifiAwareManager? =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.getSystemService(Context.WIFI_AWARE_SERVICE) as? WifiAwareManager
-        } else null
+        context.getSystemService(Context.WIFI_AWARE_SERVICE) as? WifiAwareManager
 }

@@ -1,6 +1,7 @@
 package com.abhishek.zerodroid.features.ble.domain
 
 import kotlin.math.pow
+import java.util.Locale
 
 object BleDistanceEstimator {
     private const val DEFAULT_TX_POWER = -59
@@ -15,9 +16,9 @@ object BleDistanceEstimator {
     fun getDistanceLabel(distanceM: Double): String = when {
         distanceM < 0 -> "Unknown"
         distanceM < 0.5 -> "Immediate"
-        distanceM < 2.0 -> "Near (${String.format("%.1f", distanceM)}m)"
-        distanceM < 10.0 -> "Medium (${String.format("%.1f", distanceM)}m)"
-        else -> "Far (${String.format("%.0f", distanceM)}m)"
+        distanceM < 2.0 -> "Near (${String.format(Locale.US, "%.1f", distanceM)}m)"
+        distanceM < 10.0 -> "Medium (${String.format(Locale.US, "%.1f", distanceM)}m)"
+        else -> "Far (${String.format(Locale.US, "%.0f", distanceM)}m)"
     }
 
     fun getProximityLabel(distanceM: Double): String = when {

@@ -28,7 +28,6 @@ class WifiDirectViewModel @Inject constructor(
     fun disconnect() = manager.disconnect()
 
     override fun onCleared() {
-        super.onCleared()
         manager.stopDiscovery()
         receiver?.let { manager.unregisterReceiver(it) }
         manager.cleanup()

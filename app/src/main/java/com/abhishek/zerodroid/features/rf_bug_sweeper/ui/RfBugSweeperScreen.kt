@@ -281,7 +281,7 @@ private fun SweepControls(
             val mins = seconds / 60
             val secs = seconds % 60
             Text(
-                text = "> Sweep active  ${String.format("%02d:%02d", mins, secs)}",
+                text = "> Sweep active  ${String.format(Locale.US, "%02d:%02d", mins, secs)}",
                 color = TerminalGreen,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp
@@ -453,7 +453,7 @@ private fun MagneticMeter(baseline: Float, current: Float, deviation: Float) {
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "${String.format("%.1f", current)} uT",
+            text = "${String.format(Locale.US, "%.1f", current)} uT",
             color = meterColor,
             fontFamily = FontFamily.Monospace,
             fontSize = 14.sp,
@@ -479,13 +479,13 @@ private fun MagneticMeter(baseline: Float, current: Float, deviation: Float) {
 
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Base: ${String.format("%.1f", baseline)}",
+            text = "Base: ${String.format(Locale.US, "%.1f", baseline)}",
             color = TextSecondary,
             fontFamily = FontFamily.Monospace,
             fontSize = 9.sp
         )
         Text(
-            text = "Dev: ${String.format("%.1f", absDeviation)}",
+            text = "Dev: ${String.format(Locale.US, "%.1f", absDeviation)}",
             color = meterColor.copy(alpha = 0.8f),
             fontFamily = FontFamily.Monospace,
             fontSize = 9.sp
@@ -676,7 +676,7 @@ private fun DetectionCard(detection: BugDetection) {
                     }
                     detection.frequency?.let { freq ->
                         Text(
-                            text = "${String.format("%.0f", freq)} Hz",
+                            text = "${String.format(Locale.US, "%.0f", freq)} Hz",
                             color = TextSecondary,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 10.sp
@@ -684,7 +684,7 @@ private fun DetectionCard(detection: BugDetection) {
                     }
                     detection.fieldStrength?.let { field ->
                         Text(
-                            text = "${String.format("%.1f", field)} uT",
+                            text = "${String.format(Locale.US, "%.1f", field)} uT",
                             color = TextSecondary,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 10.sp

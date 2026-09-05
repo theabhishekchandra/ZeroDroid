@@ -129,7 +129,6 @@ class ProximityRadarViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopScan()
     }
 

@@ -226,7 +226,6 @@ class RfBugSweeperViewModel @Inject constructor(
     // ── Lifecycle ──────────────────────────────────────────────────────
 
     override fun onCleared() {
-        super.onCleared()
         stopSweep()
     }
 

@@ -193,7 +193,6 @@ class GattViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         explorer.close()
     }
 

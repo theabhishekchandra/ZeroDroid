@@ -93,7 +93,6 @@ class BleViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopScan()
     }
 

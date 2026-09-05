@@ -66,5 +66,5 @@ class UltrasonicViewModel @Inject constructor(
         _state.value = _state.value.copy(isTonePlaying = false)
     }
 
-    override fun onCleared() { super.onCleared(); stopAnalysis(); stopTone() }
+    override fun onCleared() { stopAnalysis(); stopTone() }
 }

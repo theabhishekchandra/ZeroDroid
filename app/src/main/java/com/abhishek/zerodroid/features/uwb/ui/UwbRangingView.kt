@@ -19,8 +19,8 @@ private const val DISPLAY_MAX_DISTANCE_M = 10f
 
 @Composable
 fun UwbRangingView(
-    measurement: UwbRangingMeasurement? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    measurement: UwbRangingMeasurement? = null
 ) {
     val ringColor = TerminalGreen
     val dimColor = TerminalGreenDark

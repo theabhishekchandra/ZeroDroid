@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.core.graphics.toColorInt
 
 enum class QrGeneratorInputType(val displayName: String) {
     TEXT("Text"), URL("URL"), WIFI("WiFi")
@@ -134,8 +135,8 @@ class QrScannerViewModel @Inject constructor(
 
         val bitmap = QrGenerator.generate(
             content = content, size = 512,
-            foregroundColor = android.graphics.Color.parseColor("#00FF41"),
-            backgroundColor = android.graphics.Color.parseColor("#1A1A1A")
+            foregroundColor = "#00FF41".toColorInt(),
+            backgroundColor = "#1A1A1A".toColorInt()
         )
 
         _generatorState.value = if (bitmap != null) {

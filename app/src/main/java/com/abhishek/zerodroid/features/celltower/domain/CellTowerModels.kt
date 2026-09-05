@@ -62,5 +62,7 @@ data class CellTowerState(
     val alerts: List<ImsiCatcherAlert> = emptyList(),
     val isMonitoring: Boolean = false,
     val error: String? = null,
-    val signalHistory: List<Int> = emptyList()
+    val signalHistory: List<Int> = emptyList(),
+    /** True when no SIM is inserted, so no registered cell can ever appear. */
+    val simAbsent: Boolean = false
 )

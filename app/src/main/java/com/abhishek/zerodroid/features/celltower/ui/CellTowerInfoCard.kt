@@ -21,8 +21,8 @@ import com.abhishek.zerodroid.features.celltower.domain.CellTowerInfo
 @Composable
 fun CellTowerInfoCard(
     cell: CellTowerInfo,
-    label: String = "",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    label: String = ""
 ) {
     val style = cell.type.generationStyle()
     val signalColor = signalColorFor(cell.signalPercent)

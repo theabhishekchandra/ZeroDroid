@@ -252,7 +252,6 @@ class HiddenCameraViewModel @Inject constructor(
         if (source == DetectionSource.MAGNETIC) source.name else "$source:$title:$detail"
 
     override fun onCleared() {
-        super.onCleared()
         stopScan()
     }
 

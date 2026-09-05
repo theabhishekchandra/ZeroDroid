@@ -39,6 +39,8 @@ import com.abhishek.zerodroid.features.hidden_camera.domain.DetectionSource
 import com.abhishek.zerodroid.features.hidden_camera.domain.ThreatLevel
 import com.abhishek.zerodroid.ui.theme.TerminalRed
 import java.util.concurrent.Executors
+import androidx.core.graphics.createBitmap
+import androidx.compose.runtime.mutableIntStateOf
 
 @Composable
 fun IrCameraView(
@@ -48,7 +50,7 @@ fun IrCameraView(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
-    var irSpotCount by remember { mutableStateOf(0) }
+    var irSpotCount by remember { mutableIntStateOf(0) }
     var overlayBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     DisposableEffect(Unit) {
@@ -229,7 +231,7 @@ private class IrSpotAnalyzer(
         height: Int,
         clusters: List<List<Pair<Int, Int>>>
     ): Bitmap {
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(width, height)
         val canvas = Canvas(bitmap)
         val paint = Paint().apply {
             color = android.graphics.Color.RED
