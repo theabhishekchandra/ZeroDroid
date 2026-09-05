@@ -83,14 +83,15 @@ class CellTowerAnalyzer(
 
         // Signal spike detection
         val currentRssi = cell.rssi
-        if (lastRssi != null) {
-            val diff = currentRssi - lastRssi!!
+        val previousRssi = lastRssi
+        if (previousRssi != null) {
+            val diff = currentRssi - previousRssi
             if (diff > 20) {
                 alerts.add(
                     0,
                     ImsiCatcherAlert(
                         type = AlertType.SIGNAL_SPIKE,
-                        description = "Signal jumped +${diff}dB (${lastRssi}→${currentRssi})",
+                        description = "Signal jumped +${diff}dB (${previousRssi}→${currentRssi})",
                         severity = AlertSeverity.MEDIUM
                     )
                 )

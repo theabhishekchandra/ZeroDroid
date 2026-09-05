@@ -213,8 +213,12 @@ class SdpServiceDiscovery(
             context.registerReceiver(receiver, filter)
         }
 
-        // Trigger the SDP query
-        device.fetchUuidsWithSdp()
+        // Trigger the SDP query; a revoked BLUETOOTH_CONNECT surfaces as a flow failure
+        try {
+            device.fetchUuidsWithSdp()
+        } catch (e: SecurityException) {
+            close(e)
+        }
 
         awaitClose {
             try {

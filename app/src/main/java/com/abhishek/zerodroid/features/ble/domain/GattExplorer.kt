@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 
 /**
  * Core GATT connection manager. Serializes all BLE operations through a Channel
@@ -74,6 +75,8 @@ class GattExplorer(
                             GattOperationResult.Error("Operation timed out after ${OPERATION_TIMEOUT_MS / 1000}s")
                         )
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     if (!operation.deferred.isCompleted) {
                         operation.deferred.complete(GattOperationResult.Error(e.message ?: "Unknown error"))
@@ -308,7 +311,15 @@ class GattExplorer(
             connectionStatus = GattConnectionStatus.Connecting
         )
 
-        gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        gatt = try {
+            device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        } catch (e: SecurityException) {
+            _connectionState.value = _connectionState.value.copy(
+                connectionStatus = GattConnectionStatus.Disconnected,
+                error = "Bluetooth connect permission is required"
+            )
+            null
+        }
     }
 
     @SuppressLint("MissingPermission")
