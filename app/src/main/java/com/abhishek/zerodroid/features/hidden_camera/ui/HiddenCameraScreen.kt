@@ -53,9 +53,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -95,14 +97,17 @@ fun HiddenCameraScreen(
 
 @Composable
 private fun HiddenCameraContent(viewModel: HiddenCameraViewModel) {
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.stopScan()
-            viewModel.stopIrMode()
-        }
-    }
-
     val state by viewModel.state.collectAsState()
+
+    HardwareLifecycleEffect(
+        isActive = state.isScanning,
+        onPause = viewModel::stopScan,
+        onResume = viewModel::startScan
+    )
+    // The IR camera preview is bound to the lifecycle by CameraX; only the flag needs resetting.
+    DisposableEffect(Unit) {
+        onDispose { viewModel.stopIrMode() }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -491,7 +496,8 @@ private fun DetectionCard(detection: CameraDetection) {
             ) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
                     // Source badge
                     Text(
@@ -510,7 +516,10 @@ private fun DetectionCard(detection: CameraDetection) {
                         color = color,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                 }
                 // Threat level
@@ -519,7 +528,10 @@ private fun DetectionCard(detection: CameraDetection) {
                     color = color,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
 

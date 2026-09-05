@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 data class UsbUiState(
     val devices: List<UsbDeviceInfo> = emptyList(),
@@ -20,7 +23,8 @@ data class UsbUiState(
 @HiltViewModel
 class UsbViewModel @Inject constructor(
     private val usbDeviceManager: UsbDeviceManager,
-    hardwareChecker: HardwareChecker
+    hardwareChecker: HardwareChecker,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     val hasUsbHost: Boolean = hardwareChecker.hasUsbHost()
@@ -38,5 +42,14 @@ class UsbViewModel @Inject constructor(
 
     fun selectDevice(device: UsbDeviceInfo?) {
         _state.value = _state.value.copy(selectedDevice = device)
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.USB) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        _state.value = _state.value.copy(devices = DemoData.usbDevices)
     }
 }

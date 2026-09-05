@@ -40,8 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -70,15 +72,18 @@ fun BluetoothClassicScreen(
 
 @Composable
 private fun BluetoothClassicContent(viewModel: BluetoothClassicViewModel) {
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.stopScan()
-            viewModel.disconnectSpp()
-        }
-    }
-
     val state by viewModel.state.collectAsState()
     val sppState by viewModel.sppState.collectAsState()
+
+    // Discovery is released in the background; the SPP link survives until the screen closes.
+    HardwareLifecycleEffect(
+        isActive = state.isScanning,
+        onPause = viewModel::stopScan,
+        onResume = viewModel::startScan
+    )
+    DisposableEffect(Unit) {
+        onDispose { viewModel.disconnectSpp() }
+    }
 
     var showTerminal by remember { mutableStateOf(false) }
     var selectedDevice by remember { mutableStateOf<String?>(null) }
@@ -280,13 +285,18 @@ private fun ClassicDeviceItem(
                     Text(
                         text = device.displayName,
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = device.majorClass,
                         style = MaterialTheme.typography.labelSmall,
                         color = TerminalCyan,
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier
                             .padding(horizontal = 6.dp, vertical = 1.dp)
                     )

@@ -14,10 +14,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
+import com.abhishek.zerodroid.features.ir.domain.IrRemoteDatabase
 
 @HiltViewModel
 class IrViewModel @Inject constructor(
-    private val irTransmitter: IrTransmitter
+    private val irTransmitter: IrTransmitter,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(IrRemoteState(isIrAvailable = irTransmitter.isAvailable))
@@ -62,5 +67,19 @@ class IrViewModel @Inject constructor(
         )
         val result = irTransmitter.transmit(signal)
         _state.value = _state.value.copy(lastTransmitResult = result)
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.IR) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        _state.value = _state.value.copy(
+            isIrAvailable = true,
+            selectedProfile = IrRemoteDatabase.profiles.first(),
+            importedSignals = DemoData.irSignals,
+            code = "20DF10EF"
+        )
     }
 }

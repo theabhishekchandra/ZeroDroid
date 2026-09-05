@@ -20,6 +20,8 @@ coreUwb = "1.0.0"
 mlkitBarcode = "17.3.0"
 playServicesLocation = "21.4.0"
 zxingCore = "3.5.4"
+mockk = "1.14.7"
+orgJson = "20241224"
 splashscreen = "1.2.0"
 
 [libraries]
@@ -47,6 +49,7 @@ room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
 camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
 camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
@@ -57,6 +60,8 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxingCore" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 androidx-core-uwb = { group = "androidx.core.uwb", name = "uwb", version.ref = "coreUwb" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

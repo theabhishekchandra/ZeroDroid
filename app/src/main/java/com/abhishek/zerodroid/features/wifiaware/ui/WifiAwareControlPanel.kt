@@ -57,9 +57,10 @@ fun WifiAwareControlPanel(
         if (!state.isSessionAttached) {
             Button(
                 onClick = onAttach,
+                enabled = state.isAvailable,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Attach Session") }
+            ) { Text(if (state.isAvailable) "Attach Session" else "Wi-Fi Aware unavailable") }
         } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),

@@ -21,11 +21,15 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class BluetoothTrackerViewModel @Inject constructor(
     private val bleScanner: BleScanner,
-    private val alertCenterRepository: AlertCenterRepository
+    private val alertCenterRepository: AlertCenterRepository,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TrackerScanState())
@@ -190,5 +194,21 @@ class BluetoothTrackerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopScan()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.BLUETOOTH_TRACKER) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopScan()
+        _state.value = _state.value.copy(
+            trackers = DemoData.trackers,
+            totalDevicesScanned = 42,
+            scanDurationMs = 95_000L,
+            highRiskCount = DemoData.trackers.count { it.risk == TrackingRisk.HIGH },
+            error = null
+        )
     }
 }

@@ -22,6 +22,11 @@ val releaseStoreFile = releaseSigningProp("RELEASE_STORE_FILE")
 
 android {
     namespace = "com.abhishek.zerodroid"
+
+    testOptions {
+        // Domain classes log through android.util.Log; return defaults instead of throwing in JVM tests.
+        unitTests.isReturnDefaultValues = true
+    }
     compileSdk {
         version = release(37) {
             minorApiLevel = 1
@@ -32,8 +37,8 @@ android {
         applicationId = "com.abhishek.zerodroid"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.2.1"
+        versionCode = 5
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -110,6 +115,9 @@ dependencies {
     implementation(libs.androidx.core.uwb)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.org.json)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

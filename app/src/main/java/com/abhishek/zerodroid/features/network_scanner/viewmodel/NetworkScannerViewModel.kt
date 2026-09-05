@@ -14,11 +14,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class NetworkScannerViewModel @Inject constructor(
     private val scanner: NetworkVulnerabilityScanner,
-    @ApplicationContext private val appContext: Context
+    @ApplicationContext private val appContext: Context,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(NetworkScanState())
@@ -134,5 +138,25 @@ class NetworkScannerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopScan()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.NETWORK_SCANNER) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopScan()
+        val demo = DemoData.networkDevices
+        _state.value = _state.value.copy(
+            subnet = "192.168.1",
+            progress = 1f,
+            currentIp = null,
+            devices = demo,
+            totalVulnerabilities = demo.sumOf { it.vulnerabilities.size },
+            criticalCount = demo.sumOf { d -> d.vulnerabilities.count { it.level == VulnerabilityLevel.CRITICAL } },
+            scanPhase = "Complete",
+            error = null
+        )
     }
 }

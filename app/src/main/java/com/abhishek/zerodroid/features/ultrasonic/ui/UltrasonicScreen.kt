@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.TerminalCard
@@ -37,6 +38,19 @@ import com.abhishek.zerodroid.features.ultrasonic.viewmodel.UltrasonicViewModel
 @Composable
 fun UltrasonicScreen(viewModel: UltrasonicViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
+
+    HardwareLifecycleEffect(
+        isActive = state.isRecording,
+        onPause = viewModel::stopAnalysis,
+        onResume = viewModel::startAnalysis,
+        key = "microphone"
+    )
+    HardwareLifecycleEffect(
+        isActive = state.isTonePlaying,
+        onPause = viewModel::stopTone,
+        onResume = viewModel::startTone,
+        key = "speaker"
+    )
 
     LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
@@ -79,11 +93,11 @@ private fun UltrasonicDetectContent(viewModel: UltrasonicViewModel) {
     val state by viewModel.state.collectAsState()
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(text = "> Ultrasonic (18-24kHz)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(text = "> Ultrasonic (18-24kHz)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
         if (state.isRecording) {
-            OutlinedButton(onClick = { viewModel.stopAnalysis() }, colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Stop") }
+            OutlinedButton(onClick = { viewModel.stopAnalysis() }, colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Stop", maxLines = 1, softWrap = false) }
         } else {
-            Button(onClick = { viewModel.startAnalysis() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text("Analyze") }
+            Button(onClick = { viewModel.startAnalysis() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text("Analyze", maxLines = 1, softWrap = false) }
         }
     }
     Spacer(modifier = Modifier.height(8.dp))

@@ -14,10 +14,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class BleViewModel @Inject constructor(
-    private val repository: BleRepository
+    private val repository: BleRepository,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _scanState = MutableStateFlow(BleScanState(isBluetoothEnabled = repository.isAvailable))
@@ -36,7 +40,7 @@ class BleViewModel @Inject constructor(
         }
     }
 
-    private fun startScan() {
+    fun startScan() {
         if (!repository.isAvailable) {
             _scanState.value = _scanState.value.copy(isBluetoothEnabled = false)
             return
@@ -91,5 +95,15 @@ class BleViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopScan()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.BLE) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopScan()
+        _scanState.value = _scanState.value.copy(devices = DemoData.bleDevices, isBluetoothEnabled = true, error = null)
     }
 }

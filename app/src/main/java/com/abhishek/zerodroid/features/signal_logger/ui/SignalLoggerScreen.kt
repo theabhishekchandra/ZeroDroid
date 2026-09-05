@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -36,7 +37,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -109,11 +110,13 @@ fun SignalLoggerScreen(
 
 @Composable
 private fun SignalLoggerContent(viewModel: SignalLoggerViewModel) {
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stopLogging() }
-    }
-
     val state by viewModel.state.collectAsState()
+
+    HardwareLifecycleEffect(
+        isActive = state.isLogging,
+        onPause = viewModel::stopLogging,
+        onResume = viewModel::startLogging
+    )
     val context = LocalContext.current
     var selectedFilter by remember { mutableStateOf(LogFilter.ALL) }
 
@@ -461,7 +464,8 @@ private fun LogEntryRow(entry: SignalLogEntry) {
     val typeTag = "[${entry.type}]"
     val rssiStr = entry.rssi?.let { "${it}dBm" } ?: ""
     val sourceStr = if (entry.source.length > 20) entry.source.take(20) + ".." else entry.source
-    val addressShort = if (entry.address.length > 11) entry.address.takeLast(11) else entry.address
+    // Last three octets are enough to tell rows apart and leave room for the source name.
+    val addressShort = if (entry.address.length > 8) entry.address.takeLast(8) else entry.address
 
     Row(
         modifier = Modifier
@@ -504,7 +508,9 @@ private fun LogEntryRow(entry: SignalLogEntry) {
             fontWeight = fontWeight,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false)
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .widthIn(min = 56.dp)
         )
 
         Spacer(modifier = Modifier.width(4.dp))
