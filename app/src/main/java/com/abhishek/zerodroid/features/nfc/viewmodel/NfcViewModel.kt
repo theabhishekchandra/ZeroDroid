@@ -15,13 +15,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class NfcViewModel @Inject constructor(
     private val nfcTagManager: NfcTagManager,
     private val repository: NfcRepository,
     private val nfcTagBus: NfcTagBus,
-    private val nfcAdapter: NfcAdapter?
+    private val nfcAdapter: NfcAdapter?,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -80,4 +84,17 @@ class NfcViewModel @Inject constructor(
         viewModelScope.launch { repository.clearHistory() }
     }
 
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.NFC) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        _state.value = _state.value.copy(
+            isNfcAvailable = true,
+            isNfcEnabled = true,
+            lastTag = DemoData.nfcTag,
+            tagHistory = listOf(DemoData.nfcTag) + _state.value.tagHistory
+        )
+    }
 }

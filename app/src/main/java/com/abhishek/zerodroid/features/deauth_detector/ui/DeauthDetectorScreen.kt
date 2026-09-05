@@ -36,7 +36,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -50,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -88,11 +88,13 @@ fun DeauthDetectorScreen(
 
 @Composable
 private fun DeauthDetectorContent(viewModel: DeauthDetectorViewModel) {
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stopMonitoring() }
-    }
-
     val state by viewModel.state.collectAsState()
+
+    HardwareLifecycleEffect(
+        isActive = state.isMonitoring,
+        onPause = viewModel::stopMonitoring,
+        onResume = viewModel::startMonitoring
+    )
 
     LazyColumn(
         modifier = Modifier

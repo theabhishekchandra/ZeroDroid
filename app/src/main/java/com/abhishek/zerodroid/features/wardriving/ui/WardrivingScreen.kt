@@ -2,6 +2,7 @@ package com.abhishek.zerodroid.features.wardriving.ui
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
@@ -60,19 +62,26 @@ private fun WardrivingContent(viewModel: WardrivingViewModel) {
                 Text(
                     text = "> Wardriving",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (state.isScanning) {
                         OutlinedButton(
                             onClick = { viewModel.stopSession() },
+                            contentPadding = PaddingValues(horizontal = 14.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) { Text("Stop") }
+                        ) { Text("Stop", maxLines = 1, softWrap = false) }
                     } else {
                         Button(
                             onClick = { viewModel.startSession() },
+                            contentPadding = PaddingValues(horizontal = 14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) { Text("Start") }
+                        ) { Text("Start", maxLines = 1, softWrap = false) }
                     }
 
                     if (state.session != null && !state.isScanning) {
@@ -88,8 +97,9 @@ private fun WardrivingContent(viewModel: WardrivingViewModel) {
                                     context.startActivity(Intent.createChooser(intent, "Export CSV"))
                                 }
                             },
+                            contentPadding = PaddingValues(horizontal = 14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) { Text("Export") }
+                        ) { Text("Export", maxLines = 1, softWrap = false) }
                     }
                 }
             }

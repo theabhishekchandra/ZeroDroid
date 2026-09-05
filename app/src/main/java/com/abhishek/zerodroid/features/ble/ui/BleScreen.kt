@@ -17,13 +17,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -45,11 +45,13 @@ fun BleScreen(
 
 @Composable
 private fun BleContent(viewModel: BleViewModel) {
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stopScan() }
-    }
-
     val scanState by viewModel.scanState.collectAsState()
+
+    HardwareLifecycleEffect(
+        isActive = scanState.isScanning,
+        onPause = viewModel::stopScan,
+        onResume = viewModel::startScan
+    )
 
     LazyColumn(
         modifier = Modifier

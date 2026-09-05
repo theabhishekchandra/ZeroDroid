@@ -13,10 +13,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class UwbViewModel @Inject constructor(
-    private val uwbService: UwbService
+    private val uwbService: UwbService,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -150,5 +154,25 @@ class UwbViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopRanging()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.UWB) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        rangingJob?.cancel()
+        rangingJob = null
+        _state.value = _state.value.copy(
+            isHardwareAvailable = true,
+            deviceInfo = DemoData.uwbDeviceInfo,
+            role = UwbRole.CONTROLLER,
+            isRanging = true,
+            localSession = DemoData.uwbSession,
+            measurement = DemoData.uwbMeasurement,
+            statusMessage = "Demo ranging session",
+            error = null
+        )
     }
 }

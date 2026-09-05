@@ -21,12 +21,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class DeauthDetectorViewModel @Inject constructor(
     private val wifiScanner: WifiScanner,
     @ApplicationContext private val context: Context,
-    private val alertCenterRepository: AlertCenterRepository
+    private val alertCenterRepository: AlertCenterRepository,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val analyzer = DeauthAnalyzer(context)
@@ -171,5 +175,26 @@ class DeauthDetectorViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopMonitoring()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.DEAUTH) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopMonitoring()
+        _state.value = _state.value.copy(
+            events = DemoData.deauthEvents,
+            monitoringDurationMs = 180_000L,
+            connectedSsid = "HomeNet-5G",
+            connectedBssid = "AA:BB:CC:11:22:33",
+            connectedRssi = -58,
+            connectedChannel = 36,
+            disconnectCount = 4,
+            apHistory = DemoData.apHistory,
+            isUnderAttack = true,
+            error = null
+        )
     }
 }

@@ -33,6 +33,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -62,6 +63,12 @@ fun GpsScreen(
 @Composable
 private fun GpsContent(viewModel: GpsViewModel) {
     val state by viewModel.state.collectAsState()
+
+    HardwareLifecycleEffect(
+        isActive = state.isTracking,
+        onPause = viewModel::stopTracking,
+        onResume = viewModel::startTracking
+    )
     var satellitesExpanded by remember { mutableStateOf(false) }
 
     LazyColumn(

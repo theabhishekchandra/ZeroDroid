@@ -16,11 +16,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class ProximityRadarViewModel @Inject constructor(
     private val bleScanner: BleScanner,
-    private val wifiScanner: WifiScanner
+    private val wifiScanner: WifiScanner,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RadarState())
@@ -127,5 +131,22 @@ class ProximityRadarViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopScan()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.PROXIMITY_RADAR) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopScan()
+        val demo = DemoData.radarDevices
+        _state.value = _state.value.copy(
+            devices = demo,
+            wifiCount = demo.count { it.category == DeviceCategory.WIFI_AP },
+            bleCount = demo.count { it.category != DeviceCategory.WIFI_AP },
+            nearestDevice = demo.minByOrNull { it.estimatedDistanceM },
+            error = null
+        )
     }
 }

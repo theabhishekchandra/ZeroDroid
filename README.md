@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <sub>Replaces Termux + a dozen single-purpose scanner apps with one native, offline, permission-scoped toolkit.</sub>
+</p>
+
+<p align="center">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.4.10-0D1117?style=for-the-badge&logo=kotlin&logoColor=00E676&labelColor=0D1117" />
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/Jetpack%20Compose-0D1117?style=for-the-badge&logo=jetpackcompose&logoColor=00E676&labelColor=0D1117" />
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android%208.0%2B-0D1117?style=for-the-badge&logo=android&logoColor=00E676&labelColor=0D1117" />

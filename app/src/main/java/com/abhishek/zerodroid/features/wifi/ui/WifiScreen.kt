@@ -1,6 +1,8 @@
 package com.abhishek.zerodroid.features.wifi.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,13 +21,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -53,9 +55,11 @@ private fun WifiContent(viewModel: WifiViewModel) {
     val selectedBand by viewModel.selectedBand.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
 
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stopScan() }
-    }
+    HardwareLifecycleEffect(
+        isActive = isScanning,
+        onPause = viewModel::stopScan,
+        onResume = viewModel::startScan
+    )
 
     val filteredAps = if (selectedBand != null) {
         accessPoints.filter { it.band == selectedBand }
@@ -77,7 +81,15 @@ private fun WifiContent(viewModel: WifiViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Chips take the leftover width and scroll if needed so the Scan/Stop
+                // button never gets squeezed into a wrapped two-line label.
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     FilterChip(
                         selected = selectedBand == null,
                         onClick = { viewModel.selectBand(null) },
@@ -105,7 +117,7 @@ private fun WifiContent(viewModel: WifiViewModel) {
                 }
                 if (isScanning) {
                     OutlinedButton(onClick = { viewModel.stopScan() }) {
-                        Text("Stop")
+                        Text("Stop", maxLines = 1, softWrap = false)
                     }
                 } else {
                     Button(
@@ -115,7 +127,7 @@ private fun WifiContent(viewModel: WifiViewModel) {
                             contentColor = TerminalGreen
                         )
                     ) {
-                        Text("Scan")
+                        Text("Scan", maxLines = 1, softWrap = false)
                     }
                 }
             }

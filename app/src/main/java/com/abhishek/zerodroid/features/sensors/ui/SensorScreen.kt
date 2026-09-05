@@ -18,13 +18,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.ui.EmptyState
 import com.abhishek.zerodroid.core.ui.TerminalCard
 import com.abhishek.zerodroid.features.sensors.viewmodel.SensorViewModel
@@ -36,6 +36,12 @@ fun SensorScreen(
     viewModel: SensorViewModel = hiltViewModel()
 ) {
     val isMonitoring by viewModel.isMonitoring.collectAsState()
+
+    HardwareLifecycleEffect(
+        isActive = isMonitoring,
+        onPause = viewModel::stopSensors,
+        onResume = viewModel::startSensors
+    )
     val accelerometer by viewModel.accelerometer.collectAsState()
     val gyroscope by viewModel.gyroscope.collectAsState()
     val magnetometer by viewModel.magnetometer.collectAsState()
@@ -47,10 +53,6 @@ fun SensorScreen(
     val compassHeading by viewModel.compassHeading.collectAsState()
     val tiltState by viewModel.tiltState.collectAsState()
     val vibrationState by viewModel.vibrationState.collectAsState()
-
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stopSensors() }
-    }
 
     LazyColumn(
         modifier = Modifier

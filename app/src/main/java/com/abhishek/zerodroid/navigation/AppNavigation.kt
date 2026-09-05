@@ -36,6 +36,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.abhishek.zerodroid.core.ui.EthicalUseDialog
 import com.abhishek.zerodroid.core.ui.FeatureHelpSheet
+import com.abhishek.zerodroid.core.debug.DemoDataAction
 import com.abhishek.zerodroid.core.ui.HelpContent
 import com.abhishek.zerodroid.features.alert_center.ui.AlertCenterScreen
 import com.abhishek.zerodroid.features.dashboard.DashboardScreen
@@ -198,6 +199,7 @@ fun AppNavigation() {
                         }
                     },
                     actions = {
+                        DemoDataAction(route = currentRoute)
                         if (helpKey != null && HelpContent.features.containsKey(helpKey)) {
                             IconButton(onClick = { showHelp = true }) {
                                 Icon(
