@@ -14,11 +14,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class BluetoothClassicViewModel @Inject constructor(
     private val scanner: BluetoothClassicScanner,
-    private val sppManager: SppConnectionManager
+    private val sppManager: SppConnectionManager,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BluetoothClassicState())
@@ -42,7 +46,7 @@ class BluetoothClassicViewModel @Inject constructor(
         if (_state.value.isScanning) stopScan() else startScan()
     }
 
-    private fun startScan() {
+    fun startScan() {
         scanJob?.cancel()
         _state.value = _state.value.copy(isScanning = true, discoveredDevices = emptyList())
         scanJob = viewModelScope.launch {
@@ -84,5 +88,19 @@ class BluetoothClassicViewModel @Inject constructor(
         super.onCleared()
         stopScan()
         sppManager.disconnect()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.BLUETOOTH_CLASSIC) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopScan()
+        _state.value = _state.value.copy(
+            discoveredDevices = DemoData.classicDevices,
+            pairedDevices = DemoData.classicDevices.filter { it.isPaired },
+            error = null
+        )
     }
 }

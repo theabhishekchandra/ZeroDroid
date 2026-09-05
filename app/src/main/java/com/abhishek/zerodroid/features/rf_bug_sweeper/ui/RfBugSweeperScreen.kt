@@ -39,7 +39,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,9 +50,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -95,15 +96,17 @@ fun RfBugSweeperScreen(
 
 @Composable
 private fun RfBugSweeperContent(viewModel: RfBugSweeperViewModel) {
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stopSweep() }
-    }
-
     val state by viewModel.state.collectAsState()
 
     var selectedModes by remember {
         mutableStateOf(setOf(SweepMode.BLE, SweepMode.ULTRASONIC, SweepMode.MAGNETIC))
     }
+
+    HardwareLifecycleEffect(
+        isActive = state.isSweeping,
+        onPause = viewModel::stopSweep,
+        onResume = { viewModel.startSweep(selectedModes) }
+    )
 
     LazyColumn(
         modifier = Modifier
@@ -610,7 +613,8 @@ private fun DetectionCard(detection: BugDetection) {
             ) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
                     // Type badge
                     Text(
@@ -630,6 +634,8 @@ private fun DetectionCard(detection: BugDetection) {
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
                 }
@@ -639,7 +645,10 @@ private fun DetectionCard(detection: BugDetection) {
                     color = color,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
 

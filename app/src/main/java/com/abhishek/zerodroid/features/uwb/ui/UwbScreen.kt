@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.StatusIndicator
@@ -46,6 +47,13 @@ fun UwbScreen(
 @Composable
 private fun UwbContent(viewModel: UwbViewModel) {
     val state by viewModel.state.collectAsState()
+
+    // A ranging session needs fresh keys shared with the peer, so it is not auto-resumed.
+    HardwareLifecycleEffect(
+        isActive = state.isRanging,
+        onPause = viewModel::stopRanging,
+        resumeOnForeground = false
+    )
 
     LazyColumn(
         modifier = Modifier

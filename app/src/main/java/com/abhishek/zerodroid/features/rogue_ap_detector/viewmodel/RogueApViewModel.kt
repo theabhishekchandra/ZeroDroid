@@ -18,11 +18,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class RogueApViewModel @Inject constructor(
     private val wifiScanner: WifiScanner,
-    private val alertCenterRepository: AlertCenterRepository
+    private val alertCenterRepository: AlertCenterRepository,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val analyzer = RogueApAnalyzer()
@@ -124,5 +128,15 @@ class RogueApViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopScan()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.ROGUE_AP) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopScan()
+        _state.value = _state.value.copy(totalAps = 9, alerts = DemoData.rogueAlerts, safeAps = 6, suspiciousAps = 3, error = null)
     }
 }

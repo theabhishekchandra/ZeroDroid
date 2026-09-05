@@ -19,7 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -54,14 +55,14 @@ fun WifiDirectScreen(
 
 @Composable
 private fun WifiDirectContent(viewModel: WifiDirectViewModel) {
-    DisposableEffect(Unit) {
-        viewModel.initialize()
-        onDispose {
-            viewModel.stopDiscovery()
-        }
-    }
-
     val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.initialize() }
+    HardwareLifecycleEffect(
+        isActive = state.isDiscovering,
+        onPause = viewModel::stopDiscovery,
+        onResume = viewModel::startDiscovery
+    )
 
     LazyColumn(
         modifier = Modifier

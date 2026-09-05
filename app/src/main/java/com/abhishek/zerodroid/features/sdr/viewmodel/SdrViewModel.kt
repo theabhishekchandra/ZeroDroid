@@ -15,12 +15,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class SdrViewModel @Inject constructor(
     private val sdrDetector: SdrDetector,
     private val usbConnectionManager: UsbConnectionManager,
-    hardwareChecker: HardwareChecker
+    hardwareChecker: HardwareChecker,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SdrState(hasUsbHost = hardwareChecker.hasUsbHost()))
@@ -79,5 +83,14 @@ class SdrViewModel @Inject constructor(
         super.onCleared()
         openConnection?.close()
         openConnection = null
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.SDR) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        _state.value = _state.value.copy(hasUsbHost = true, devices = DemoData.sdrDevices, connectionError = null)
     }
 }

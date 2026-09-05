@@ -12,10 +12,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class CellTowerViewModel @Inject constructor(
-    private val analyzer: CellTowerAnalyzer
+    private val analyzer: CellTowerAnalyzer,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CellTowerState())
@@ -48,5 +52,21 @@ class CellTowerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopMonitoring()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.CELL_TOWER) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopMonitoring()
+        _state.value = _state.value.copy(
+            currentCell = DemoData.servingCell,
+            neighbors = DemoData.neighborCells,
+            alerts = DemoData.imsiAlerts,
+            signalHistory = DemoData.signalHistory,
+            error = null
+        )
     }
 }

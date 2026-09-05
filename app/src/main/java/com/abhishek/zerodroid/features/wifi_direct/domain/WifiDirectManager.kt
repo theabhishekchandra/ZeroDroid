@@ -147,11 +147,14 @@ class WifiDirectManager(private val context: Context) {
             addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION)
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // WIFI_P2P_STATE_CHANGED is sticky: registerReceiver hands back the last broadcast,
+        // which is the only way to learn the current enabled state without waiting for a toggle.
+        val sticky = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             context.registerReceiver(receiver, filter)
         }
+        sticky?.let { receiver.onReceive(context, it) }
 
         return receiver
     }

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.abhishek.zerodroid.features.network_scanner.ui
 
 import androidx.compose.animation.AnimatedVisibility
@@ -16,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,7 +52,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +66,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -102,11 +105,14 @@ fun NetworkScannerScreen(
 
 @Composable
 private fun NetworkScannerContent(viewModel: NetworkScannerViewModel) {
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stopScan() }
-    }
-
     val state by viewModel.state.collectAsState()
+
+    // A sweep cannot be resumed mid-way; the user re-runs it after returning.
+    HardwareLifecycleEffect(
+        isActive = state.isScanning,
+        onPause = viewModel::stopScan,
+        resumeOnForeground = false
+    )
 
     LazyColumn(
         modifier = Modifier
@@ -421,9 +427,10 @@ private fun SummaryCard(state: NetworkScanState) {
             // Severity breakdown
             if (totalVulns > 0) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (criticalCount > 0) SeverityBadge("CRIT: $criticalCount", SeverityCritical)
                     if (highCount > 0) SeverityBadge("HIGH: $highCount", SeverityHigh)
@@ -439,6 +446,8 @@ private fun SummaryCard(state: NetworkScanState) {
 @Composable
 private fun SeverityBadge(label: String, color: Color) {
     Text(
+        maxLines = 1,
+        softWrap = false,
         text = "[$label]",
         color = color,
         fontFamily = FontFamily.Monospace,

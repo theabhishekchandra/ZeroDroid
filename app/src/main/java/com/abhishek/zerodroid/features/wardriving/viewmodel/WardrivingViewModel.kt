@@ -23,12 +23,16 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class WardrivingViewModel @Inject constructor(
     private val repository: WardrivingRepository,
     private val sessionState: WardrivingSessionState,
-    @ApplicationContext private val appContext: Context
+    @ApplicationContext private val appContext: Context,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WardrivingState())
@@ -136,6 +140,27 @@ class WardrivingViewModel @Inject constructor(
             openCount = openCount,
             securedCount = securedCount,
             sessionDurationMs = durationMs
+        )
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.WARDRIVING) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        val demo = DemoData.wardrivingRecords
+        _state.value = _state.value.copy(
+            session = WardrivingSession(
+                id = "demo",
+                startTime = System.currentTimeMillis() - DemoData.wardrivingStats.sessionDurationMs,
+                recordCount = demo.size,
+                uniqueBssids = demo.map { it.bssid }.distinct().size,
+                isActive = false
+            ),
+            records = demo,
+            stats = DemoData.wardrivingStats,
+            error = null
         )
     }
 }
