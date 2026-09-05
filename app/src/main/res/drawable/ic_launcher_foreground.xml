@@ -5,71 +5,42 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Shield outline - main shape -->
-    <!-- Shield: rounded top, pointed bottom, centered at 54,54 -->
+    <!-- Protective shield with a restrained darker interior. -->
+    <path
+        android:fillColor="#143327"
+        android:pathData="M54,30 L78,39 V57 Q78,71 54,84 Q30,71 30,57 V39 Z" />
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#00FF41"
-        android:strokeWidth="2.5"
-        android:pathData="
-            M54,24
-            L76,32
-            Q78,33 78,35
-            L78,55
-            Q78,68 54,82
-            Q30,68 30,55
-            L30,35
-            Q30,33 32,32
-            Z" />
+        android:pathData="M54,29 L79,38 V57 Q79,72 54,86 Q29,72 29,57 V38 Z"
+        android:strokeColor="#00E676"
+        android:strokeLineJoin="round"
+        android:strokeWidth="4" />
 
-    <!-- Shield fill (very subtle dark green) -->
-    <path
-        android:fillColor="#0D1F0D"
-        android:pathData="
-            M54,26
-            L75,33.5
-            Q76.5,34.2 76.5,35.5
-            L76.5,55
-            Q76.5,67 54,80
-            Q31.5,67 31.5,55
-            L31.5,35.5
-            Q31.5,34.2 33,33.5
-            Z" />
-
-    <!-- "Z" letterform inside shield - bold terminal style -->
-    <!-- Top horizontal bar -->
-    <path
-        android:fillColor="#00FF41"
-        android:pathData="M40,40 L68,40 L68,44 L40,44 Z" />
-
-    <!-- Diagonal slash -->
-    <path
-        android:fillColor="#00FF41"
-        android:pathData="M60,44 L68,44 L48,66 L40,66 Z" />
-
-    <!-- Bottom horizontal bar -->
-    <path
-        android:fillColor="#00FF41"
-        android:pathData="M40,66 L68,66 L68,70 L40,70 Z" />
-
-    <!-- Small scan dot (blinking cursor effect) - bottom right of Z -->
-    <path
-        android:fillColor="#00FF41"
-        android:pathData="M70,66 L73,66 L73,70 L70,70 Z" />
-
-    <!-- Subtle glow around shield (outer green halo) -->
+    <!-- Wireless signal integrated into the shield crown. -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#1A00FF41"
-        android:strokeWidth="1.5"
-        android:pathData="
-            M54,21
-            L79,30
-            Q81,31 81,33
-            L81,56
-            Q81,71 54,85
-            Q27,71 27,56
-            L27,33
-            Q27,31 29,30
-            Z" />
+        android:pathData="M41,27 Q54,16 67,27"
+        android:strokeColor="#00E676"
+        android:strokeLineCap="round"
+        android:strokeWidth="4" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M46,31 Q54,24 62,31"
+        android:strokeColor="#00E676"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.5" />
+    <path
+        android:fillColor="#26CFA3"
+        android:pathData="M54,32 A2.5,2.5 0,1 1,54,37 A2.5,2.5 0,1 1,54,32" />
+
+    <!-- Angular Z monogram. -->
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M39,43 L70,43 L64,50 L46,50 Z" />
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M63,43 L71,43 L45,72 L37,72 Z" />
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M37,72 L63,72 L70,65 L44,65 Z" />
 </vector>
