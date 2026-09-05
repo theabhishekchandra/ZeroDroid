@@ -17,6 +17,7 @@ import java.io.FileOutputStream
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import kotlinx.coroutines.CancellationException
 
 data class TransferProgress(
     val state: TransferState,
@@ -68,12 +69,13 @@ class WifiDirectFileTransfer(private val context: Context) {
         try {
             _progress.value = TransferProgress(TransferState.WaitingForConnection)
 
-            serverSocket = ServerSocket(PORT).apply {
+            val server = ServerSocket(PORT).apply {
                 reuseAddress = true
                 soTimeout = 0 // Block indefinitely until a connection arrives
             }
+            serverSocket = server
 
-            val socket = serverSocket!!.accept()
+            val socket = server.accept()
             clientSocket = socket
 
             _progress.value = TransferProgress(TransferState.Connecting)
@@ -167,6 +169,8 @@ class WifiDirectFileTransfer(private val context: Context) {
                     success = success
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             if (_progress.value.state != TransferState.Idle) {
                 _progress.value = TransferProgress(
@@ -260,6 +264,8 @@ class WifiDirectFileTransfer(private val context: Context) {
                     success = true
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             val currentFileName = _progress.value.fileName
             _progress.value = TransferProgress(

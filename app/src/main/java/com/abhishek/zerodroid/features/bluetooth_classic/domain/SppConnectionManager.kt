@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 
 class SppConnectionManager(
     private val bluetoothManager: BluetoothManager?
@@ -57,6 +58,8 @@ class SppConnectionManager(
                         break
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _sppState.value = SppState(
                     isConnected = false,
@@ -75,6 +78,8 @@ class SppConnectionManager(
                 _sppState.value = _sppState.value.copy(
                     lines = (_sppState.value.lines + line).takeLast(200)
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _sppState.value = _sppState.value.copy(
                     error = "Send failed: ${e.message}"

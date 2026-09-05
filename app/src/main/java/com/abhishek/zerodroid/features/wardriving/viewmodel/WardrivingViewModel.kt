@@ -26,6 +26,7 @@ import javax.inject.Inject
 import com.abhishek.zerodroid.core.debug.DemoDataBus
 import com.abhishek.zerodroid.core.debug.DemoData
 import com.abhishek.zerodroid.core.debug.observeDemoRequests
+import kotlinx.coroutines.CancellationException
 
 @HiltViewModel
 class WardrivingViewModel @Inject constructor(
@@ -117,6 +118,8 @@ class WardrivingViewModel @Inject constructor(
 
                 _state.value = _state.value.copy(exportStatus = "Exported ${csv.lines().size - 2} records")
                 onExported(uri)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.value = _state.value.copy(exportStatus = "Export failed: ${e.message}")
             }

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.flow.catch
 
 @HiltViewModel
 class WifiViewModel @Inject constructor(
@@ -33,17 +34,28 @@ class WifiViewModel @Inject constructor(
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
     private var scanJob: Job? = null
     private var autoStopJob: Job? = null
 
     fun startScan() {
         if (scanJob?.isActive == true) return
         _isScanning.value = true
+        _error.value = null
         scanJob = viewModelScope.launch {
-            wifiScanner.scan().collect { aps ->
-                _accessPoints.value = aps
-                _channelScores.value = ChannelAnalyzer.analyze(aps)
-            }
+            wifiScanner.scan()
+                .catch { e ->
+                    // A revoked location permission or a disabled adapter must not take the
+                    // whole process down; report it like the other scanners do.
+                    _isScanning.value = false
+                    _error.value = "WiFi scan error: ${e.message}"
+                }
+                .collect { aps ->
+                    _accessPoints.value = aps
+                    _channelScores.value = ChannelAnalyzer.analyze(aps)
+                }
         }
         autoStopJob?.cancel()
         autoStopJob = viewModelScope.launch {
