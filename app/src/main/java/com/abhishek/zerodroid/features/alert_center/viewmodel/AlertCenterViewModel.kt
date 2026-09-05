@@ -10,10 +10,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class AlertCenterViewModel @Inject constructor(
-    private val repository: AlertCenterRepository
+    private val repository: AlertCenterRepository,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     val alerts: StateFlow<List<UnifiedAlert>> = repository.alerts.stateIn(
@@ -24,5 +28,16 @@ class AlertCenterViewModel @Inject constructor(
 
     fun clearAll() {
         viewModelScope.launch { repository.clearAll() }
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.ALERT_CENTER) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        viewModelScope.launch {
+            DemoData.unifiedAlerts.forEach { repository.record(it.source, it.severity, it.title, it.detail, it.timestamp) }
+        }
     }
 }

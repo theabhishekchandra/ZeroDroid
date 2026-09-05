@@ -28,7 +28,9 @@ Font: JetBrains Mono throughout
 
 - **All services are lazy-initialized.** Nothing starts until you navigate to that feature. The app launches to a zero-cost Dashboard.
 - **No auto-start scanning.** Every scanner requires a manual tap to start, and auto-stops after a timeout (sensors: 60s, WiFi/BLE: 30s).
-- **No `saveState` in navigation.** When you leave a screen, its `DisposableEffect.onDispose` fires and scanning stops immediately.
+- **No `saveState` in navigation.** When you leave a screen, its scanning stops immediately.
+- **Hardware follows the app lifecycle.** Every scanning screen wraps its session in `HardwareLifecycleEffect` (`core/lifecycle`), which releases radios, sensors and the microphone on `ON_STOP` (Home button, app switch, screen lock), re-acquires them on `ON_START` if they were running, and stops them when the screen leaves composition. One-shot or peer-coordinated sessions (network scan, privacy audit, UWB ranging) pause but do not auto-resume. Wardriving is the deliberate exception: it runs a foreground service so collection continues in the background.
+- **Debug builds can load demo data.** The top bar shows a flask icon on hardware-dependent screens in debug builds only. It posts the current route on `DemoDataBus` (`core/debug`), and the screen's ViewModel replaces its live state with the samples in `DemoData`. This is how populated layouts are verified on phones without NFC, IR, UWB, Wi-Fi Aware or SDR hardware. `BuildConfig.DEBUG` gates both the button and the bus, so release builds carry no demo path.
 - **Sensor polling at 5Hz, not 60Hz.** `SENSOR_DELAY_NORMAL` instead of `SENSOR_DELAY_UI` — 12x fewer events with no visible difference.
 - **BLE uses `SCAN_MODE_LOW_POWER`** instead of `LOW_LATENCY` — 10x less battery drain.
 

@@ -19,12 +19,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class RfBugSweeperViewModel @Inject constructor(
     private val bleScanner: BleScanner,
     private val ultrasonicAnalyzer: UltrasonicAnalyzer,
-    private val sensorDataCollector: SensorDataCollector
+    private val sensorDataCollector: SensorDataCollector,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BugSweepState())
@@ -224,5 +228,24 @@ class RfBugSweeperViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopSweep()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.RF_BUG_SWEEPER) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopSweep()
+        _state.value = _state.value.copy(
+            detections = DemoData.bugDetections,
+            bleDeviceCount = 17,
+            ultrasonicDetected = true,
+            magneticBaseline = 48.2f,
+            magneticCurrent = 93.7f,
+            magneticDeviation = 45.5f,
+            sweepDurationMs = 64_000L,
+            error = null
+        )
     }
 }

@@ -23,6 +23,9 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class HiddenCameraViewModel @Inject constructor(
@@ -30,7 +33,8 @@ class HiddenCameraViewModel @Inject constructor(
     private val wifiScanner: WifiScanner,
     private val bleScanner: BleScanner,
     private val sensorDataCollector: SensorDataCollector,
-    private val alertCenterRepository: AlertCenterRepository
+    private val alertCenterRepository: AlertCenterRepository,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HiddenCameraScanState())
@@ -250,5 +254,23 @@ class HiddenCameraViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopScan()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.HIDDEN_CAMERA) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopScan()
+        val demo = DemoData.cameraDetections
+        _state.value = _state.value.copy(
+            detections = demo,
+            wifiSuspects = demo.count { it.source == DetectionSource.WIFI },
+            bleSuspects = demo.count { it.source == DetectionSource.BLE },
+            magneticAnomaly = demo.any { it.source == DetectionSource.MAGNETIC },
+            networkSuspects = demo.count { it.source == DetectionSource.NETWORK },
+            error = null
+        )
     }
 }

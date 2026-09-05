@@ -196,9 +196,16 @@ class PrivacyScoreViewModel @Inject constructor(
         }
     }
 
+    /** Cancels an in-progress audit and releases the sensors it was using. */
+    fun stopScan() {
+        scanJob?.cancel()
+        scanJob = null
+        sensorDataCollector.stop()
+        _state.value = _state.value.copy(isScanning = false)
+    }
+
     override fun onCleared() {
         super.onCleared()
-        scanJob?.cancel()
-        sensorDataCollector.stop()
+        stopScan()
     }
 }

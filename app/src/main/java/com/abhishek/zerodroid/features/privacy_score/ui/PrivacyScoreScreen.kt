@@ -46,10 +46,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -94,6 +96,13 @@ fun PrivacyScoreScreen(
 @Composable
 private fun PrivacyScoreContent(viewModel: PrivacyScoreViewModel) {
     val state by viewModel.state.collectAsState()
+
+    // The audit is a one-shot pass over WiFi, BLE and sensors; the user re-runs it after returning.
+    HardwareLifecycleEffect(
+        isActive = state.isScanning,
+        onPause = viewModel::stopScan,
+        resumeOnForeground = false
+    )
 
     LazyColumn(
         modifier = Modifier
@@ -433,7 +442,9 @@ private fun CategoryBar(label: String, score: Int, weight: Int) {
             color = TextPrimary,
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
-            modifier = Modifier.width(72.dp)
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.width(84.dp)
         )
 
         // Bar
@@ -451,21 +462,26 @@ private fun CategoryBar(label: String, score: Int, weight: Int) {
             )
         }
 
-        // Score & weight
+        // Score & weight, kept on one line so narrow screens never wrap the digits
         Text(
             text = "${score}%",
             color = barColor,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp,
-            modifier = Modifier.width(36.dp)
+            maxLines = 1,
+            softWrap = false,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(40.dp)
         )
         Text(
             text = "(${weight}%)",
             color = TextSecondary,
             fontFamily = FontFamily.Monospace,
             fontSize = 10.sp,
-            modifier = Modifier.width(36.dp)
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.width(40.dp)
         )
     }
 }

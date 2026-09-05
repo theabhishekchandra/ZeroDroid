@@ -53,7 +53,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,6 +67,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.EmptyState
@@ -108,11 +108,13 @@ fun RogueApScreen(
 
 @Composable
 private fun RogueApContent(viewModel: RogueApViewModel) {
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stopScan() }
-    }
-
     val state by viewModel.state.collectAsState()
+
+    HardwareLifecycleEffect(
+        isActive = state.isScanning,
+        onPause = viewModel::stopScan,
+        onResume = viewModel::startScan
+    )
 
     LazyColumn(
         modifier = Modifier
@@ -437,7 +439,9 @@ private fun ApDetailRow(label: String, value: String, color: Color) {
             color = TextSecondary.copy(alpha = 0.6f),
             fontFamily = FontFamily.Monospace,
             fontSize = 11.sp,
-            modifier = Modifier.width(64.dp)
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.width(80.dp)
         )
         Text(
             text = value,

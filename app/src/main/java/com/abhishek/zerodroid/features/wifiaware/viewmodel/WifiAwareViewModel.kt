@@ -10,10 +10,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class WifiAwareViewModel @Inject constructor(
-    private val service: WifiAwareService
+    private val service: WifiAwareService,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WifiAwareState(isAvailable = service.isAvailable))
@@ -51,6 +55,35 @@ class WifiAwareViewModel @Inject constructor(
         )
     }
 
+    private var resumePublish = false
+    private var resumeSubscribe = false
+
+    /** Releases the Aware session for the background, remembering what to restore. */
+    fun pauseSession() {
+        resumePublish = _state.value.isPublishing
+        resumeSubscribe = _state.value.isSubscribing
+        detachSession()
+    }
+
+    /** Re-attaches after [pauseSession] and restores publish/subscribe if they were active. */
+    fun resumeSession() {
+        val restorePublish = resumePublish
+        val restoreSubscribe = resumeSubscribe
+        resumePublish = false
+        resumeSubscribe = false
+        service.attach { attached ->
+            _state.value = if (attached) {
+                _state.value.copy(isSessionAttached = true, error = null)
+            } else {
+                _state.value.copy(error = "Failed to re-attach Wi-Fi Aware session")
+            }
+            if (attached) {
+                if (restorePublish && !_state.value.isPublishing) togglePublish()
+                if (restoreSubscribe && !_state.value.isSubscribing) toggleSubscribe()
+            }
+        }
+    }
+
     fun togglePublish() {
         if (_state.value.isPublishing) {
             service.stopPublish()
@@ -82,5 +115,21 @@ class WifiAwareViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         service.detach()
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.WIFI_AWARE) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        _state.value = _state.value.copy(
+            isAvailable = true,
+            isSessionAttached = true,
+            isPublishing = true,
+            isSubscribing = true,
+            discoveredPeers = DemoData.awarePeers,
+            error = null
+        )
     }
 }

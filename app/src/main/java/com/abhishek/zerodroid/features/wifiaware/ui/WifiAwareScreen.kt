@@ -10,12 +10,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.core.ui.StatusIndicator
@@ -36,11 +36,13 @@ fun WifiAwareScreen(
 
 @Composable
 private fun WifiAwareContent(viewModel: WifiAwareViewModel) {
-    DisposableEffect(Unit) {
-        onDispose { viewModel.detachSession() }
-    }
-
     val state by viewModel.state.collectAsState()
+
+    HardwareLifecycleEffect(
+        isActive = state.isSessionAttached,
+        onPause = viewModel::pauseSession,
+        onResume = viewModel::resumeSession
+    )
 
     LazyColumn(
         modifier = Modifier

@@ -20,11 +20,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 
 @HiltViewModel
 class SignalLoggerViewModel @Inject constructor(
     private val wifiScanner: WifiScanner,
-    private val bleScanner: BleScanner
+    private val bleScanner: BleScanner,
+    private val demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SignalLoggerState())
@@ -115,13 +119,15 @@ class SignalLoggerViewModel @Inject constructor(
                     val newAps = currentBssids - stats.previousWifiAps
                     val lostAps = stats.previousWifiAps - currentBssids
 
-                    // Log all current APs
+                    // Log an AP when it is first seen or reappears; re-logging every AP each
+                    // cycle floods the timeline with duplicates and hides the real events.
                     accessPoints.forEach { ap ->
                         val isNew = ap.bssid in newAps && stats.previousWifiAps.isNotEmpty()
+                        val firstSighting = ap.bssid !in stats.uniqueWifiAps
                         val type = if (isNew) SignalType.WIFI_NEW else SignalType.WIFI_AP
                         val ssidLabel = ap.ssid.ifBlank { "<Hidden>" }
 
-                        newEntries.add(
+                        if (isNew || firstSighting) newEntries.add(
                             SignalLogEntry(
                                 type = type,
                                 source = ssidLabel,
@@ -218,16 +224,17 @@ class SignalLoggerViewModel @Inject constructor(
                     val newDevices = currentAddresses - stats.previousBleDevices
                     val lostDevices = stats.previousBleDevices - currentAddresses
 
-                    // Log all current BLE devices
+                    // Log a device when it is first seen or reappears (see WiFi path above).
                     devices.forEach { device ->
                         val isNew = device.address in newDevices && stats.previousBleDevices.isNotEmpty()
+                        val firstSighting = device.address !in stats.uniqueBleDevices
                         val type = if (isNew) SignalType.BLE_NEW else SignalType.BLE_DEVICE
 
                         val uuidInfo = if (device.serviceUuids.isNotEmpty()) {
                             "UUIDs: ${device.serviceUuids.size}"
                         } else "No service UUIDs"
 
-                        newEntries.add(
+                        if (isNew || firstSighting) newEntries.add(
                             SignalLogEntry(
                                 type = type,
                                 source = device.displayName,
@@ -338,5 +345,27 @@ class SignalLoggerViewModel @Inject constructor(
 
     companion object {
         private const val MAX_ENTRIES = 500
+    }
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.SIGNAL_LOGGER) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without hardware. */
+    private fun loadDemoData() {
+        stopLogging()
+        val demo = DemoData.signalEntries
+        _state.value = _state.value.copy(
+            entries = demo,
+            totalEntries = demo.size,
+            wifiApCount = 8,
+            bleDeviceCount = 5,
+            newDevicesCount = 3,
+            lostDevicesCount = 1,
+            anomalyCount = demo.count { it.isAnomaly },
+            loggingDurationMs = 240_000L,
+            entriesPerMinute = demo.size / 4f,
+            error = null
+        )
     }
 }
