@@ -26,6 +26,7 @@ import com.abhishek.zerodroid.features.nfc.domain.MifareSectorData
 import com.abhishek.zerodroid.ui.theme.TerminalAmber
 import com.abhishek.zerodroid.ui.theme.TerminalGreen
 import com.abhishek.zerodroid.ui.theme.TerminalRed
+import java.util.Locale
 
 @Composable
 fun NfcMifarePanel(
@@ -108,7 +109,7 @@ private fun MifareSectorCard(sector: MifareSectorData) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "B${String.format("%02d", block.blockIndex)}:",
+                            text = "B${String.format(Locale.US, "%02d", block.blockIndex)}:",
                             style = MaterialTheme.typography.labelSmall,
                             color = TerminalAmber,
                             fontFamily = FontFamily.Monospace

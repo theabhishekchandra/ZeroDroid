@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.abhishek.zerodroid.R
+import androidx.core.content.edit
 
 private const val PREFS_NAME = "zerodroid_prefs"
 private const val KEY_ETHICAL_ACCEPTED = "ethical_use_accepted"
@@ -41,7 +42,7 @@ fun EthicalUseDialog() {
             },
             confirmButton = {
                 TextButton(onClick = {
-                    prefs.edit().putBoolean(KEY_ETHICAL_ACCEPTED, true).apply()
+                    prefs.edit { putBoolean(KEY_ETHICAL_ACCEPTED, true) }
                     accepted = true
                 }) {
                     Text(

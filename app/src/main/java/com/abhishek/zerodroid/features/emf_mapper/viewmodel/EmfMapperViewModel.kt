@@ -135,7 +135,6 @@ class EmfMapperViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         recordingJob?.cancel()
         timerJob?.cancel()
         sensorDataCollector.stop()

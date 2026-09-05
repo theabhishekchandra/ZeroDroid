@@ -56,7 +56,6 @@ class GpsViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopTracking()
     }
 

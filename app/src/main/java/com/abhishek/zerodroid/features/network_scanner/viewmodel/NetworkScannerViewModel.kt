@@ -136,7 +136,6 @@ class NetworkScannerViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopScan()
     }
 

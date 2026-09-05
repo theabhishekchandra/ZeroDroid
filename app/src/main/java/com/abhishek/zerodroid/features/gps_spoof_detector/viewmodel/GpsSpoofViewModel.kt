@@ -207,7 +207,6 @@ class GpsSpoofViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopMonitoring()
     }
 }

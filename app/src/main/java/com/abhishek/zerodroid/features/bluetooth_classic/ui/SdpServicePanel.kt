@@ -60,10 +60,10 @@ fun SdpServicePanel(
     deviceName: String?,
     services: List<SdpServiceInfo>,
     isQuerying: Boolean,
-    isCached: Boolean = false,
     onQuerySdp: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isCached: Boolean = false
 ) {
     TerminalCard(modifier = modifier.fillMaxWidth()) {
         Column(

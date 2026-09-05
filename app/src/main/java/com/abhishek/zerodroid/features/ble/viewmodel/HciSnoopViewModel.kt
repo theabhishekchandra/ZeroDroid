@@ -40,7 +40,6 @@ class HciSnoopViewModel @Inject constructor(
     companion object {
         private val KNOWN_LOG_PATHS = listOf(
             "/data/misc/bluetooth/logs/btsnoop_hci.log",
-            "/sdcard/btsnoop_hci.log",
             "/data/log/bt/btsnoop_hci.log",
             "/storage/emulated/0/btsnoop_hci.log"
         )

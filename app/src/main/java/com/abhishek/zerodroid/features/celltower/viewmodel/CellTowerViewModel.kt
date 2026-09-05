@@ -50,7 +50,6 @@ class CellTowerViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         stopMonitoring()
     }
 

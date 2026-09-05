@@ -2,6 +2,7 @@ package com.abhishek.zerodroid.features.rf_bug_sweeper.domain
 
 import com.abhishek.zerodroid.features.ble.domain.BleDevice
 import java.util.UUID
+import java.util.Locale
 
 enum class BugType { RF_TRANSMITTER, ULTRASONIC_BEACON, MAGNETIC_ANOMALY, SUSPICIOUS_BLE, UNKNOWN }
 
@@ -151,8 +152,8 @@ class RfBugDetector {
             type = BugType.ULTRASONIC_BEACON,
             severity = severity,
             title = "Ultrasonic Beacon Detected",
-            detail = "Peak at ${String.format("%.1f", peakFrequencyHz)} Hz " +
-                    "(magnitude ${String.format("%.4f", peakMagnitude)}). " +
+            detail = "Peak at ${String.format(Locale.US, "%.1f", peakFrequencyHz)} Hz " +
+                    "(magnitude ${String.format(Locale.US, "%.4f", peakMagnitude)}). " +
                     if (beaconCount > 0) "$beaconCount beacon(s) identified in 18-24 kHz range. " +
                             "Ultrasonic beacons are used for cross-device tracking."
                     else "Elevated ultrasonic energy detected — possible tracking signal.",
@@ -186,8 +187,8 @@ class RfBugDetector {
             type = BugType.MAGNETIC_ANOMALY,
             severity = severity,
             title = "Magnetic Anomaly",
-            detail = "Deviation of ${String.format("%.1f", absDeviation)} μT from baseline " +
-                    "(${String.format("%.1f", baseline)} → ${String.format("%.1f", current)} μT). " +
+            detail = "Deviation of ${String.format(Locale.US, "%.1f", absDeviation)} μT from baseline " +
+                    "(${String.format(Locale.US, "%.1f", baseline)} → ${String.format(Locale.US, "%.1f", current)} μT). " +
                     "Electronic devices and wiring produce detectable magnetic fields. " +
                     "Slowly move phone to pinpoint the source.",
             fieldStrength = current

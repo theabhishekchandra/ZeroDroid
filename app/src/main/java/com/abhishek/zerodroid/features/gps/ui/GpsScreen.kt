@@ -47,6 +47,7 @@ import com.abhishek.zerodroid.ui.theme.TerminalCyan
 import com.abhishek.zerodroid.ui.theme.TerminalGreen
 import com.abhishek.zerodroid.ui.theme.TerminalRed
 import com.abhishek.zerodroid.ui.theme.TextDim
+import java.util.Locale
 
 @Composable
 fun GpsScreen(
@@ -175,9 +176,9 @@ private fun PositionCard(state: GpsState) {
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(8.dp))
-        DataRow("Latitude", String.format("%.6f", state.latitude))
-        DataRow("Longitude", String.format("%.6f", state.longitude))
-        DataRow("Altitude", String.format("%.1f m", state.altitude))
+        DataRow("Latitude", String.format(Locale.US, "%.6f", state.latitude))
+        DataRow("Longitude", String.format(Locale.US, "%.6f", state.longitude))
+        DataRow("Altitude", String.format(Locale.US, "%.1f m", state.altitude))
         DataRow("Provider", state.provider.uppercase())
     }
 }
@@ -194,9 +195,9 @@ private fun MotionCard(state: GpsState) {
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(8.dp))
-        DataRow("Speed", String.format("%.1f m/s (%.1f km/h)", state.speed, speedKmh))
-        DataRow("Bearing", String.format("%.1f\u00B0 %s", state.bearing, direction))
-        DataRow("Accuracy", String.format("\u00B1%.1f m", state.accuracy))
+        DataRow("Speed", String.format(Locale.US, "%.1f m/s (%.1f km/h)", state.speed, speedKmh))
+        DataRow("Bearing", String.format(Locale.US, "%.1f\u00B0 %s", state.bearing, direction))
+        DataRow("Accuracy", String.format(Locale.US, "\u00B1%.1f m", state.accuracy))
     }
 }
 
@@ -276,17 +277,17 @@ private fun SatelliteRow(sat: SatelliteInfo) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "CN0: ${String.format("%.1f", sat.cn0DbHz)} dB-Hz",
+                        text = "CN0: ${String.format(Locale.US, "%.1f", sat.cn0DbHz)} dB-Hz",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextDim
                     )
                     Text(
-                        text = "El: ${String.format("%.0f", sat.elevationDeg)}\u00B0",
+                        text = "El: ${String.format(Locale.US, "%.0f", sat.elevationDeg)}\u00B0",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextDim
                     )
                     Text(
-                        text = "Az: ${String.format("%.0f", sat.azimuthDeg)}\u00B0",
+                        text = "Az: ${String.format(Locale.US, "%.0f", sat.azimuthDeg)}\u00B0",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextDim
                     )

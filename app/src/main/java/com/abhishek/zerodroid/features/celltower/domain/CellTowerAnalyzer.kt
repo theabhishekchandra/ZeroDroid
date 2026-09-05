@@ -17,6 +17,11 @@ import kotlinx.coroutines.flow.flow
 class CellTowerAnalyzer(
     private val telephonyManager: TelephonyManager?
 ) {
+    private companion object {
+        /** Same value as [UNAVAILABLE] (API 29); inlined so minSdk 26 builds read it too. */
+        const val UNAVAILABLE = Int.MAX_VALUE
+    }
+
     private var lastLac: Int? = null
     private var lastRssi: Int? = null
     private var lastCellType: CellType? = null
@@ -33,7 +38,10 @@ class CellTowerAnalyzer(
         alerts.clear()
 
         while (true) {
-            try {
+            // Build the state inside the try, but emit outside it: catching around emit() would
+            // swallow the collector's cancellation (e.g. Stop, or a first()) and then emit into a
+            // cancelled flow, which the Flow contract rejects.
+            val state = try {
                 val cellInfos = telephonyManager?.allCellInfo ?: emptyList()
                 val towers = cellInfos.mapNotNull { it.toCellTowerInfo() }
                 val current = towers.firstOrNull { it.isRegistered }
@@ -41,19 +49,19 @@ class CellTowerAnalyzer(
 
                 current?.let { checkImsiHeuristics(it) }
 
-                emit(
-                    CellTowerState(
-                        currentCell = current,
-                        neighbors = neighbors,
-                        alerts = alerts.toList(),
-                        isMonitoring = true
-                    )
+                CellTowerState(
+                    currentCell = current,
+                    neighbors = neighbors,
+                    alerts = alerts.toList(),
+                    isMonitoring = true,
+                    simAbsent = telephonyManager?.simState == TelephonyManager.SIM_STATE_ABSENT
                 )
             } catch (e: SecurityException) {
-                emit(CellTowerState(error = "Permission denied: ${e.message}"))
+                CellTowerState(error = "Permission denied: ${e.message}")
             } catch (e: Exception) {
-                emit(CellTowerState(error = e.message))
+                CellTowerState(error = e.message)
             }
+            emit(state)
             delay(3000)
         }
     }
@@ -112,12 +120,12 @@ class CellTowerAnalyzer(
     // placeholders rather than a real identity, so they must be filtered like MCC/MNC already are,
     // or the UI ends up displaying a fake-looking tower ID that was never actually broadcast.
     private fun Int.orNullIfUnavailable(): Int? =
-        takeIf { it != CellInfo.UNAVAILABLE && it != 65535 && it != 268435455 }
+        takeIf { it != UNAVAILABLE && it != 65535 && it != 268435455 }
 
     private fun Long.orNullIfUnavailable(): Long? =
-        takeIf { it != CellInfo.UNAVAILABLE.toLong() && it != 65535L && it != 268435455L }
+        takeIf { it != UNAVAILABLE.toLong() && it != 65535L && it != 268435455L }
 
-    private fun Int.taOrNull(): Int? = takeIf { it != CellInfo.UNAVAILABLE && it in 0..1282 }
+    private fun Int.taOrNull(): Int? = takeIf { it != UNAVAILABLE && it in 0..1282 }
 
     // Distance from Timing Advance: TA is a round-trip-time unit specific to each radio generation
     // (LTE: 16*Ts ≈ 78.12m/step, GSM: one bit period ≈ 553.85m/step) — a real security signal, since
@@ -131,12 +139,12 @@ class CellTowerAnalyzer(
             val mcc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 cellIdentity.mccString?.toIntOrNull()
             } else {
-                cellIdentity.mcc.takeIf { it != CellInfo.UNAVAILABLE }
+                cellIdentity.mcc.takeIf { it != UNAVAILABLE }
             }
             val mnc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 cellIdentity.mncString?.toIntOrNull()
             } else {
-                cellIdentity.mnc.takeIf { it != CellInfo.UNAVAILABLE }
+                cellIdentity.mnc.takeIf { it != UNAVAILABLE }
             }
             CellTowerInfo(
                 type = CellType.LTE,
@@ -148,13 +156,13 @@ class CellTowerAnalyzer(
                 rssi = cellSignalStrength.rsrp,
                 arfcn = cellIdentity.earfcn,
                 isRegistered = isRegistered,
-                pci = cellIdentity.pci.takeIf { it != CellInfo.UNAVAILABLE },
-                rsrq = cellSignalStrength.rsrq.takeIf { it != CellInfo.UNAVAILABLE },
-                snr = cellSignalStrength.rssnr.takeIf { it != CellInfo.UNAVAILABLE },
+                pci = cellIdentity.pci.takeIf { it != UNAVAILABLE },
+                rsrq = cellSignalStrength.rsrq.takeIf { it != UNAVAILABLE },
+                snr = cellSignalStrength.rssnr.takeIf { it != UNAVAILABLE },
                 timingAdvance = cellSignalStrength.timingAdvance.taOrNull(),
                 distanceMeters = cellSignalStrength.timingAdvance.taOrNull()?.let { lteTaToMeters(it) },
                 bandwidthKhz = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    cellIdentity.bandwidth.takeIf { it != CellInfo.UNAVAILABLE }
+                    cellIdentity.bandwidth.takeIf { it != UNAVAILABLE }
                 } else {
                     null
                 }
@@ -164,12 +172,12 @@ class CellTowerAnalyzer(
             val mcc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 cellIdentity.mccString?.toIntOrNull()
             } else {
-                cellIdentity.mcc.takeIf { it != CellInfo.UNAVAILABLE }
+                cellIdentity.mcc.takeIf { it != UNAVAILABLE }
             }
             val mnc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 cellIdentity.mncString?.toIntOrNull()
             } else {
-                cellIdentity.mnc.takeIf { it != CellInfo.UNAVAILABLE }
+                cellIdentity.mnc.takeIf { it != UNAVAILABLE }
             }
             CellTowerInfo(
                 type = CellType.GSM,
@@ -189,12 +197,12 @@ class CellTowerAnalyzer(
             val mcc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 cellIdentity.mccString?.toIntOrNull()
             } else {
-                cellIdentity.mcc.takeIf { it != CellInfo.UNAVAILABLE }
+                cellIdentity.mcc.takeIf { it != UNAVAILABLE }
             }
             val mnc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 cellIdentity.mncString?.toIntOrNull()
             } else {
-                cellIdentity.mnc.takeIf { it != CellInfo.UNAVAILABLE }
+                cellIdentity.mnc.takeIf { it != UNAVAILABLE }
             }
             CellTowerInfo(
                 type = CellType.WCDMA,
@@ -206,7 +214,7 @@ class CellTowerAnalyzer(
                 rssi = cellSignalStrength.dbm,
                 arfcn = cellIdentity.uarfcn,
                 isRegistered = isRegistered,
-                pci = cellIdentity.psc.takeIf { it != CellInfo.UNAVAILABLE }
+                pci = cellIdentity.psc.takeIf { it != UNAVAILABLE }
             )
         }
         is CellInfoCdma -> CellTowerInfo(
@@ -238,9 +246,9 @@ class CellTowerAnalyzer(
                             rssi = ss.ssRsrp,
                             arfcn = id.nrarfcn,
                             isRegistered = isRegistered,
-                            pci = id.pci.takeIf { it != CellInfo.UNAVAILABLE },
-                            rsrq = ss.ssRsrq.takeIf { it != CellInfo.UNAVAILABLE },
-                            snr = ss.ssSinr.takeIf { it != CellInfo.UNAVAILABLE }
+                            pci = id.pci.takeIf { it != UNAVAILABLE },
+                            rsrq = ss.ssRsrq.takeIf { it != UNAVAILABLE },
+                            snr = ss.ssSinr.takeIf { it != UNAVAILABLE }
                         )
                     }
                     is CellInfoTdscdma -> {
