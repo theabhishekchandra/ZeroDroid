@@ -1,47 +1,56 @@
 package com.abhishek.zerodroid.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
 private val ZeroDroidColorScheme = darkColorScheme(
-    primary = TerminalGreen,
-    onPrimary = BackgroundDark,
-    primaryContainer = TerminalGreenDark,
-    onPrimaryContainer = TerminalGreen,
-    secondary = TerminalCyan,
-    onSecondary = BackgroundDark,
-    secondaryContainer = Color(0xFF004D40),
-    onSecondaryContainer = TerminalCyan,
-    tertiary = TerminalAmber,
-    onTertiary = BackgroundDark,
-    error = TerminalRed,
-    onError = BackgroundDark,
-    background = BackgroundDark,
-    onBackground = TextPrimary,
-    surface = SurfaceDark,
-    onSurface = TextPrimary,
-    surfaceVariant = SurfaceVariantDark,
-    onSurfaceVariant = TextSecondary,
-    outline = CardBorderGreen,
-    outlineVariant = Color(0xFF2E2E2E)
+    primary = ZdColors.Accent,
+    onPrimary = ZdColors.OnAccent,
+    primaryContainer = ZdColors.AccentBg,
+    onPrimaryContainer = ZdColors.Accent,
+    secondary = ZdColors.Info,
+    onSecondary = ZdColors.Bg,
+    secondaryContainer = ZdColors.InfoBg,
+    onSecondaryContainer = ZdColors.Info,
+    tertiary = ZdColors.Medium,
+    onTertiary = ZdColors.Bg,
+    tertiaryContainer = ZdColors.MediumBg,
+    onTertiaryContainer = ZdColors.Medium,
+    error = ZdColors.Critical,
+    onError = ZdColors.OnCritical,
+    errorContainer = ZdColors.CriticalBg,
+    onErrorContainer = ZdColors.Critical,
+    background = ZdColors.Bg,
+    onBackground = ZdColors.Text,
+    surface = ZdColors.Surface,
+    onSurface = ZdColors.Text,
+    surfaceVariant = ZdColors.Surface2,
+    onSurfaceVariant = ZdColors.Text2,
+    surfaceContainerLowest = ZdColors.Bg,
+    surfaceContainerLow = ZdColors.Surface,
+    surfaceContainer = ZdColors.Surface,
+    surfaceContainerHigh = ZdColors.Surface2,
+    surfaceContainerHighest = ZdColors.Surface3,
+    outline = ZdColors.BorderStrong,
+    outlineVariant = ZdColors.Border,
+    scrim = ZdColors.Scrim
 )
 
 private val ZeroDroidShapes = Shapes(
-    extraSmall = CutCornerShape(2.dp),
-    small = CutCornerShape(4.dp),
-    medium = CutCornerShape(6.dp),
-    large = CutCornerShape(8.dp),
-    extraLarge = CutCornerShape(12.dp)
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(14.dp),
+    extraLarge = RoundedCornerShape(22.dp)
 )
 
 @Composable

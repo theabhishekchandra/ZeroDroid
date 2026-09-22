@@ -6,6 +6,8 @@ import com.abhishek.zerodroid.core.alerts.AlertSeverity
 import com.abhishek.zerodroid.core.alerts.AlertSource
 import com.abhishek.zerodroid.core.alerts.UnifiedAlert
 import com.abhishek.zerodroid.core.hardware.HardwareChecker
+import com.abhishek.zerodroid.core.prefs.LastUsedFeature
+import com.abhishek.zerodroid.core.prefs.ToolPreferences
 import com.abhishek.zerodroid.core.testing.MainDispatcherRule
 import io.mockk.every
 import io.mockk.mockk
@@ -34,12 +36,13 @@ class DashboardViewModelTest {
     private val alerts = mockk<AlertCenterRepository>()
     private val info = DeviceInfo("VIVO V2036", "13 (API 33)", "2036", "bengal")
 
-    private fun alert(i: Int) = UnifiedAlert("a$i", AlertSource.ROGUE_AP, AlertSeverity.HIGH, "t$i", "d$i", i.toLong())
+    private fun alert(i: Int, severity: AlertSeverity = AlertSeverity.HIGH) =
+        UnifiedAlert("a$i", AlertSource.ROGUE_AP, severity, "t$i", "d$i", i.toLong())
 
     private fun vm(alertList: List<UnifiedAlert> = emptyList()): DashboardViewModel {
         every { alerts.alerts } returns flowOf(alertList)
         every { editor.putString(any(), any()) } returns editor
-        return DashboardViewModel(hardware, prefs, alerts, info)
+        return DashboardViewModel(hardware, ToolPreferences(prefs), alerts, info)
     }
 
     @Test
@@ -109,5 +112,61 @@ class DashboardViewModelTest {
         val built = DeviceInfo.fromBuild()
         assertTrue(built.androidVersion.contains("(API 0)"))
         assertEquals("", built.device)
+    }
+
+    @Test
+    fun `alert summary counts each severity and orders the breakdown by severity`() = runTest(mainRule.dispatcher) {
+        val viewModel = vm(
+            listOf(
+                alert(1, AlertSeverity.MEDIUM),
+                alert(2, AlertSeverity.HIGH),
+                alert(3, AlertSeverity.MEDIUM),
+                alert(9, AlertSeverity.LOW)
+            )
+        )
+        val subscriber = launch { viewModel.alertSummary.collect { } }
+
+        val summary = viewModel.alertSummary.value
+        assertEquals(4, summary.total)
+        assertEquals(AlertSeverity.HIGH, summary.worst)
+        assertEquals("1 high · 2 medium · 1 low", summary.breakdown)
+        assertEquals(9L, summary.latestTimestamp)
+        subscriber.cancel()
+    }
+
+    @Test
+    fun `empty alert summary has no worst severity`() {
+        val summary = AlertSummary.from(emptyList())
+        assertNull(summary.worst)
+        assertEquals("", summary.breakdown)
+        assertNull(summary.latestTimestamp)
+    }
+
+    @Test
+    fun `tool support counts catalog tools this phone can run and names what is missing`() {
+        every { hardware.hasWifi() } returns true
+        every { hardware.hasBluetoothLe() } returns true
+        every { hardware.hasBluetooth() } returns true
+        every { hardware.hasGps() } returns true
+        every { hardware.hasIr() } returns false
+        every { hardware.hasUwb() } returns false
+        every { hardware.hasBarometer() } returns false
+
+        val support = vm().toolSupport
+
+        assertEquals(28, support.total)
+        assertTrue(support.supported < support.total)
+        assertTrue("no IR blaster" in support.missing)
+        assertTrue("no UWB" in support.missing)
+        assertTrue("no barometer" in support.missing)
+        assertEquals(support.missing.distinct(), support.missing)
+    }
+
+    @Test
+    fun `pinned tools default to the catalog defaults`() {
+        assertEquals(
+            listOf("wifi", "bluetooth_tracker", "ble", "nfc"),
+            vm().pinnedTools.value.map { it.route }
+        )
     }
 }

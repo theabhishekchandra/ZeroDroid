@@ -1,10 +1,26 @@
 package com.abhishek.zerodroid.core.ui
 
+/** How a result looks on screen, for the "Reading the results" legend. */
+enum class LegendMark { SIGNAL_STRONG, SIGNAL_WEAK, TAG_GOOD, TAG_WARN, TAG_BAD, TAG_INFO }
+
+data class HelpLegend(val mark: LegendMark, val label: String, val meaning: String)
+
+/** A short fact with a one-line explanation: limits, permissions, false positives. */
+data class HelpFact(val title: String, val detail: String)
+
+/**
+ * In-context help for one tool, keyed by its route. [steps], [legend] and [facts] are the
+ * redesign's "How to use / Reading the results / Good to know"; tools that don't have them yet
+ * fall back to [capabilities] and [tips].
+ */
 data class FeatureHelp(
     val title: String,
     val description: String,
-    val capabilities: List<String>,
-    val tips: List<String>
+    val capabilities: List<String> = emptyList(),
+    val tips: List<String> = emptyList(),
+    val steps: List<String> = emptyList(),
+    val legend: List<HelpLegend> = emptyList(),
+    val facts: List<HelpFact> = emptyList()
 )
 
 object HelpContent {
@@ -26,17 +42,22 @@ object HelpContent {
         ),
         "wifi" to FeatureHelp(
             title = "WiFi Analyzer",
-            description = "Scan and analyze nearby WiFi networks for security and signal quality.",
-            capabilities = listOf(
-                "Scan all 2.4 GHz and 5 GHz networks",
-                "View signal strength, channel, and security type",
-                "Channel congestion analysis chart",
-                "Security rating for each network"
+            description = "Find crowded channels and weak security",
+            steps = listOf(
+                "Tap Start. The scan runs for 30 s by default.",
+                "Open Channels to see which channel is least crowded.",
+                "Tap a network for its details, or flag it as trusted."
             ),
-            tips = listOf(
-                "Use channel chart to find the least congested channel for your router",
-                "WPA3 is the most secure — WEP and Open networks are dangerous",
-                "Signal below -70 dBm means poor connection quality"
+            legend = listOf(
+                HelpLegend(LegendMark.SIGNAL_STRONG, "", "Strong, about -50 dBm or better"),
+                HelpLegend(LegendMark.SIGNAL_WEAK, "", "Weak, about -80 dBm"),
+                HelpLegend(LegendMark.TAG_GOOD, "WPA3", "Strongest encryption"),
+                HelpLegend(LegendMark.TAG_BAD, "OPEN", "No encryption, others can read traffic")
+            ),
+            facts = listOf(
+                HelpFact("Android limits scans", "4 scans every 2 minutes per app"),
+                HelpFact("Location permission", "Required by Android for WiFi results; never stored"),
+                HelpFact("Hidden networks", "Shown as [hidden]; their names can’t be read")
             )
         ),
         "ble" to FeatureHelp(
@@ -54,7 +75,7 @@ object HelpContent {
                 "Bookmark important devices to track them across scans"
             )
         ),
-        "celltower" to FeatureHelp(
+        "cell_tower" to FeatureHelp(
             title = "Cell Tower Analyzer",
             description = "Monitor cell tower connections and detect potential IMSI catchers.",
             capabilities = listOf(
@@ -129,7 +150,7 @@ object HelpContent {
                 "Use Detect mode in different rooms to check for hidden beacons"
             )
         ),
-        "qrscanner" to FeatureHelp(
+        "camera" to FeatureHelp(
             title = "QR Scanner",
             description = "Scan QR codes and barcodes with threat analysis, or generate your own.",
             capabilities = listOf(
@@ -187,7 +208,7 @@ object HelpContent {
                 "Full ranging requires a second UWB-equipped device"
             )
         ),
-        "wifiaware" to FeatureHelp(
+        "wifi_aware" to FeatureHelp(
             title = "Wi-Fi Aware",
             description = "Discover nearby devices using Wi-Fi Aware (NAN).",
             capabilities = listOf(
@@ -201,7 +222,7 @@ object HelpContent {
                 "Useful for local file sharing and messaging"
             )
         ),
-        "usbcamera" to FeatureHelp(
+        "usb_camera" to FeatureHelp(
             title = "USB Camera",
             description = "Detect and preview USB cameras connected via OTG.",
             capabilities = listOf(

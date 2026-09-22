@@ -7,45 +7,47 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.outlined.HelpOutline
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.abhishek.zerodroid.core.debug.DemoDataAction
 import com.abhishek.zerodroid.core.ui.EthicalUseDialog
 import com.abhishek.zerodroid.core.ui.FeatureHelpSheet
-import com.abhishek.zerodroid.core.debug.DemoDataAction
 import com.abhishek.zerodroid.core.ui.HelpContent
+import com.abhishek.zerodroid.core.ui.zd.ZdHeader
+import com.abhishek.zerodroid.core.ui.zd.ZdIconButton
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdSnackbar
 import com.abhishek.zerodroid.features.alert_center.ui.AlertCenterScreen
-import com.abhishek.zerodroid.features.dashboard.DashboardScreen
 import com.abhishek.zerodroid.features.ble.ui.BleScreen
 import com.abhishek.zerodroid.features.ble.ui.GattExplorerScreen
 import com.abhishek.zerodroid.features.bluetooth_classic.ui.BluetoothClassicScreen
 import com.abhishek.zerodroid.features.bluetooth_tracker.ui.BluetoothTrackerScreen
 import com.abhishek.zerodroid.features.camera.ui.QrScannerScreen
 import com.abhishek.zerodroid.features.celltower.ui.CellTowerScreen
+import com.abhishek.zerodroid.features.dashboard.DashboardScreen
 import com.abhishek.zerodroid.features.deauth_detector.ui.DeauthDetectorScreen
 import com.abhishek.zerodroid.features.emf_mapper.ui.EmfMapperScreen
 import com.abhishek.zerodroid.features.gps.ui.GpsScreen
@@ -61,6 +63,7 @@ import com.abhishek.zerodroid.features.rogue_ap_detector.ui.RogueApScreen
 import com.abhishek.zerodroid.features.sdr.ui.SdrScreen
 import com.abhishek.zerodroid.features.sensors.ui.SensorScreen
 import com.abhishek.zerodroid.features.signal_logger.ui.SignalLoggerScreen
+import com.abhishek.zerodroid.features.tools.ToolsScreen
 import com.abhishek.zerodroid.features.ultrasonic.ui.UltrasonicScreen
 import com.abhishek.zerodroid.features.usb.ui.UsbScreen
 import com.abhishek.zerodroid.features.usbcamera.ui.UsbCameraScreen
@@ -69,8 +72,7 @@ import com.abhishek.zerodroid.features.wardriving.ui.WardrivingScreen
 import com.abhishek.zerodroid.features.wifi.ui.WifiScreen
 import com.abhishek.zerodroid.features.wifi_direct.ui.WifiDirectScreen
 import com.abhishek.zerodroid.features.wifiaware.ui.WifiAwareScreen
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
+import com.abhishek.zerodroid.ui.theme.ZdColors
 import kotlinx.coroutines.launch
 
 private const val ANIM_DURATION = 300
@@ -103,194 +105,169 @@ private val popExitTransition: ExitTransition =
                 animationSpec = tween(ANIM_DURATION)
             )
 
-private fun routeToHelpKey(route: String?): String? = when (route) {
-    ZeroDroidScreen.Sensors.route -> "sensors"
-    ZeroDroidScreen.Wifi.route -> "wifi"
-    ZeroDroidScreen.Ble.route -> "ble"
-    ZeroDroidScreen.Nfc.route -> "nfc"
-    ZeroDroidScreen.Ir.route -> "ir"
-    ZeroDroidScreen.Uwb.route -> "uwb"
-    ZeroDroidScreen.Usb.route -> "usb"
-    ZeroDroidScreen.Sdr.route -> "sdr"
-    ZeroDroidScreen.Camera.route -> "qrscanner"
-    ZeroDroidScreen.Ultrasonic.route -> "ultrasonic"
-    ZeroDroidScreen.Wardriving.route -> "wardriving"
-    ZeroDroidScreen.WifiAware.route -> "wifiaware"
-    ZeroDroidScreen.CellTower.route -> "celltower"
-    ZeroDroidScreen.UsbCamera.route -> "usbcamera"
-    ZeroDroidScreen.Gps.route -> "gps"
-    ZeroDroidScreen.BluetoothClassic.route -> "bluetooth_classic"
-    ZeroDroidScreen.WifiDirect.route -> "wifi_direct"
-    ZeroDroidScreen.HiddenCamera.route -> "hidden_camera"
-    ZeroDroidScreen.GpsSpoofDetector.route -> "gps_spoof_detector"
-    ZeroDroidScreen.BluetoothTracker.route -> "bluetooth_tracker"
-    ZeroDroidScreen.RogueAp.route -> "rogue_ap"
-    ZeroDroidScreen.NetworkScanner.route -> "network_scanner"
-    ZeroDroidScreen.RfBugSweeper.route -> "rf_bug_sweeper"
-    ZeroDroidScreen.ProximityRadar.route -> "proximity_radar"
-    ZeroDroidScreen.PrivacyScore.route -> "privacy_score"
-    ZeroDroidScreen.DeauthDetector.route -> "deauth_detector"
-    ZeroDroidScreen.EmfMapper.route -> "emf_mapper"
-    ZeroDroidScreen.SignalLogger.route -> "signal_logger"
-    else -> null
+/** Tools reachable from the bottom bar, in bar order. */
+internal val bottomTabs: List<BottomTab> = listOf(
+    BottomTab(ZeroDroidScreen.Dashboard.route, "Home", ZdIcons.Home),
+    BottomTab(ZeroDroidScreen.Tools.route, "Tools", ZdIcons.Grid),
+    BottomTab(ZeroDroidScreen.RfBugSweeper.route, "Sweep", ZdIcons.Sweep, emphasized = true),
+    BottomTab(ZeroDroidScreen.AlertCenter.route, "Alerts", ZdIcons.Bell, showsAlertBadge = true)
+)
+
+/** Routes that show the bottom bar. The sweep tab opens a full tool screen, so it hides it. */
+private val tabRoutes = setOf(
+    ZeroDroidScreen.Dashboard.route,
+    ZeroDroidScreen.Tools.route,
+    ZeroDroidScreen.AlertCenter.route
+)
+
+/** Opens a destination from a tab or a card, keeping Home as the single root. */
+private fun NavHostController.navigateTopLevel(route: String) {
+    navigate(route) {
+        popUpTo(graph.startDestinationId) { inclusive = false }
+        launchSingleTop = true
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppNavigation() {
+fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
     val navController = rememberNavController()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
-    val currentTitle = ZeroDroidScreen.all
-        .find { it.route == currentRoute }?.title ?: "ZeroDroid"
-
-    var showHelp by remember { mutableStateOf(false) }
-    val helpKey = routeToHelpKey(currentRoute)
+    val alertCount by shell.alertCount.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     EthicalUseDialog()
 
-    if (showHelp && helpKey != null) {
-        FeatureHelpSheet(
-            featureKey = helpKey,
-            onDismiss = { showHelp = false }
-        )
-    }
-
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                DrawerContent(
+    Scaffold(
+        containerColor = ZdColors.Bg,
+        snackbarHost = { SnackbarHost(snackbarHostState) { ZdSnackbar(it) } },
+        bottomBar = {
+            if (currentRoute in tabRoutes) {
+                ZdBottomBar(
+                    tabs = bottomTabs,
                     currentRoute = currentRoute,
-                    onScreenSelected = { screen ->
-                        navController.navigate(screen.route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                inclusive = false
-                            }
-                            launchSingleTop = true
-                        }
-                        scope.launch { drawerState.close() }
-                    }
+                    alertCount = alertCount,
+                    onSelect = { navController.navigateTopLevel(it) }
                 )
             }
         }
-    ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "> $currentTitle",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            scope.launch { drawerState.open() }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Menu",
-                                tint = MaterialTheme.colorScheme.primary
+    ) { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = ZeroDroidScreen.Dashboard.route,
+            modifier = Modifier.padding(paddingValues),
+            enterTransition = { enterTransition },
+            exitTransition = { exitTransition },
+            popEnterTransition = { popEnterTransition },
+            popExitTransition = { popExitTransition }
+        ) {
+            composable(ZeroDroidScreen.Dashboard.route) {
+                DashboardScreen(onNavigate = { navController.navigateTopLevel(it) })
+            }
+            composable(ZeroDroidScreen.Tools.route) {
+                ToolsScreen(
+                    onOpenTool = { navController.navigate(it.route) { launchSingleTop = true } },
+                    onPinChanged = { tool, pinned ->
+                        scope.launch {
+                            snackbarHostState.currentSnackbarData?.dismiss()
+                            snackbarHostState.showSnackbar(
+                                if (pinned) "${tool.name} pinned to Home" else "${tool.name} removed from Home"
                             )
                         }
-                    },
-                    actions = {
-                        DemoDataAction(route = currentRoute)
-                        if (helpKey != null && HelpContent.features.containsKey(helpKey)) {
-                            IconButton(onClick = { showHelp = true }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.HelpOutline,
-                                    contentDescription = "Help",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.primary
-                    )
+                    }
                 )
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { paddingValues ->
-            NavHost(
-                navController = navController,
-                startDestination = ZeroDroidScreen.Dashboard.route,
-                modifier = Modifier.padding(paddingValues),
-                enterTransition = { enterTransition },
-                exitTransition = { exitTransition },
-                popEnterTransition = { popEnterTransition },
-                popExitTransition = { popExitTransition }
-            ) {
-                // Dashboard
-                composable(ZeroDroidScreen.Dashboard.route) {
-                    DashboardScreen(
-                        onNavigate = { route ->
-                            navController.navigate(route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    inclusive = false
-                                }
-                                launchSingleTop = true
-                            }
-                        }
-                    )
-                }
-
-                // Original screens
-                composable(ZeroDroidScreen.Sensors.route) { SensorScreen() }
-                composable(ZeroDroidScreen.Wifi.route) { WifiScreen() }
-                composable(ZeroDroidScreen.Ble.route) { BleScreen() }
-                composable(ZeroDroidScreen.Nfc.route) { NfcScreen() }
-                composable(ZeroDroidScreen.Ir.route) { IrScreen() }
-                composable(ZeroDroidScreen.Uwb.route) { UwbScreen() }
-                composable(ZeroDroidScreen.Usb.route) { UsbScreen() }
-                composable(ZeroDroidScreen.Sdr.route) { SdrScreen() }
-                composable(ZeroDroidScreen.Camera.route) { QrScannerScreen() }
-                composable(ZeroDroidScreen.Ultrasonic.route) { UltrasonicScreen() }
-                composable(ZeroDroidScreen.Wardriving.route) { WardrivingScreen() }
-                composable(ZeroDroidScreen.WifiAware.route) { WifiAwareScreen() }
-                composable(ZeroDroidScreen.CellTower.route) { CellTowerScreen() }
-                composable(ZeroDroidScreen.UsbCamera.route) { UsbCameraScreen() }
-                composable(ZeroDroidScreen.Gps.route) { GpsScreen() }
-                composable(ZeroDroidScreen.BluetoothClassic.route) { BluetoothClassicScreen() }
-                composable(ZeroDroidScreen.WifiDirect.route) { WifiDirectScreen() }
-
-                // Security tools
-                composable(ZeroDroidScreen.HiddenCamera.route) { HiddenCameraScreen() }
-                composable(ZeroDroidScreen.GpsSpoofDetector.route) { GpsSpoofScreen() }
-                composable(ZeroDroidScreen.BluetoothTracker.route) { BluetoothTrackerScreen() }
-                composable(ZeroDroidScreen.RogueAp.route) { RogueApScreen() }
-                composable(ZeroDroidScreen.NetworkScanner.route) { NetworkScannerScreen() }
-                composable(ZeroDroidScreen.RfBugSweeper.route) { RfBugSweeperScreen() }
-                composable(ZeroDroidScreen.ProximityRadar.route) { ProximityRadarScreen() }
-                composable(ZeroDroidScreen.PrivacyScore.route) { PrivacyScoreScreen() }
-                composable(ZeroDroidScreen.DeauthDetector.route) { DeauthDetectorScreen() }
-                composable(ZeroDroidScreen.EmfMapper.route) { EmfMapperScreen() }
-                composable(ZeroDroidScreen.SignalLogger.route) { SignalLoggerScreen() }
-                composable(ZeroDroidScreen.AlertCenter.route) { AlertCenterScreen() }
-
-                // Sub-screens
-                composable(
-                    route = "gatt_explorer/{address}/{name}",
-                    arguments = listOf(
-                        navArgument("address") { type = NavType.StringType },
-                        navArgument("name") { type = NavType.StringType }
-                    )
-                ) { backStackEntry ->
-                    val address = backStackEntry.arguments?.getString("address") ?: return@composable
-                    val name = backStackEntry.arguments?.getString("name")
-                    GattExplorerScreen(
-                        deviceAddress = address,
-                        deviceName = name,
-                        onBack = { navController.popBackStack() }
-                    )
+            }
+            composable(ZeroDroidScreen.AlertCenter.route) {
+                Column(Modifier.fillMaxSize()) {
+                    ZdHeader(path = "/alerts", title = "Alerts")
+                    Box(Modifier.weight(1f)) { AlertCenterScreen() }
                 }
             }
+
+            tool(ZeroDroidScreen.Sensors, navController) { SensorScreen() }
+            tool(ZeroDroidScreen.Wifi, navController) { WifiScreen() }
+            tool(ZeroDroidScreen.Ble, navController) { BleScreen() }
+            tool(ZeroDroidScreen.Nfc, navController) { NfcScreen() }
+            tool(ZeroDroidScreen.Ir, navController) { IrScreen() }
+            tool(ZeroDroidScreen.Uwb, navController) { UwbScreen() }
+            tool(ZeroDroidScreen.Usb, navController) { UsbScreen() }
+            tool(ZeroDroidScreen.Sdr, navController) { SdrScreen() }
+            tool(ZeroDroidScreen.Camera, navController) { QrScannerScreen() }
+            tool(ZeroDroidScreen.Ultrasonic, navController) { UltrasonicScreen() }
+            tool(ZeroDroidScreen.Wardriving, navController) { WardrivingScreen() }
+            tool(ZeroDroidScreen.WifiAware, navController) { WifiAwareScreen() }
+            tool(ZeroDroidScreen.CellTower, navController) { CellTowerScreen() }
+            tool(ZeroDroidScreen.UsbCamera, navController) { UsbCameraScreen() }
+            tool(ZeroDroidScreen.Gps, navController) { GpsScreen() }
+            tool(ZeroDroidScreen.BluetoothClassic, navController) { BluetoothClassicScreen() }
+            tool(ZeroDroidScreen.WifiDirect, navController) { WifiDirectScreen() }
+            tool(ZeroDroidScreen.HiddenCamera, navController) { HiddenCameraScreen() }
+            tool(ZeroDroidScreen.GpsSpoofDetector, navController) { GpsSpoofScreen() }
+            tool(ZeroDroidScreen.BluetoothTracker, navController) { BluetoothTrackerScreen() }
+            tool(ZeroDroidScreen.RogueAp, navController) { RogueApScreen() }
+            tool(ZeroDroidScreen.NetworkScanner, navController) { NetworkScannerScreen() }
+            tool(ZeroDroidScreen.RfBugSweeper, navController) { RfBugSweeperScreen() }
+            tool(ZeroDroidScreen.ProximityRadar, navController) { ProximityRadarScreen() }
+            tool(ZeroDroidScreen.PrivacyScore, navController) { PrivacyScoreScreen() }
+            tool(ZeroDroidScreen.DeauthDetector, navController) { DeauthDetectorScreen() }
+            tool(ZeroDroidScreen.EmfMapper, navController) { EmfMapperScreen() }
+            tool(ZeroDroidScreen.SignalLogger, navController) { SignalLoggerScreen() }
+
+            // Sub-screens draw their own header
+            composable(
+                route = "gatt_explorer/{address}/{name}",
+                arguments = listOf(
+                    navArgument("address") { type = NavType.StringType },
+                    navArgument("name") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val address = backStackEntry.arguments?.getString("address") ?: return@composable
+                val name = backStackEntry.arguments?.getString("name")
+                GattExplorerScreen(
+                    deviceAddress = address,
+                    deviceName = name,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Registers a tool destination wrapped in the shared tool frame: terminal-path header with
+ * back, help and (debug) demo-data actions above the tool's own content.
+ */
+private fun NavGraphBuilder.tool(
+    screen: ZeroDroidScreen,
+    navController: NavHostController,
+    content: @Composable () -> Unit
+) {
+    composable(screen.route) {
+        val info = ToolCatalog.forRoute(screen.route)
+        var showHelp by rememberSaveable { mutableStateOf(false) }
+        val hasHelp = HelpContent.features.containsKey(screen.route)
+
+        Column(Modifier.fillMaxSize()) {
+            ZdHeader(
+                path = info?.path ?: "/tools/${screen.route}",
+                title = info?.name ?: screen.title,
+                onBack = { if (!navController.popBackStack()) navController.navigateTopLevel(ZeroDroidScreen.Dashboard.route) }
+            ) {
+                DemoDataAction(route = screen.route)
+                if (hasHelp) {
+                    ZdIconButton(ZdIcons.Help, contentDescription = "How this tool works", onClick = { showHelp = true })
+                }
+            }
+            Box(Modifier.weight(1f)) { content() }
+        }
+
+        if (showHelp) {
+            FeatureHelpSheet(
+                featureKey = screen.route,
+                icon = info?.icon ?: ZdIcons.Help,
+                onDismiss = { showHelp = false }
+            )
         }
     }
 }

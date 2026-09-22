@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,7 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.abhishek.zerodroid.ui.theme.TextDim
+import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
 
 @Composable
 fun EmptyState(
@@ -33,24 +32,19 @@ fun EmptyState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = TextDim
-            )
+            ZdIconTile(icon, tint = ZdColors.Text3, background = ZdColors.Surface2, size = 56.dp, iconSize = 28.dp)
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "> $title",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = title,
+                style = ZdType.Heading,
+                color = ZdColors.Text,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextDim,
+                style = ZdType.BodySmall,
+                color = ZdColors.Text2,
                 textAlign = TextAlign.Center
             )
         }
