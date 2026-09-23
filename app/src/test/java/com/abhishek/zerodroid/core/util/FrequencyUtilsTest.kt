@@ -93,4 +93,11 @@ class FrequencyUtilsTest {
     fun `security type falls back to unknown`() {
         assertEquals(SecurityType.UNKNOWN, SecurityType.fromCapabilities("[SOMETHING-WEIRD]"))
     }
+
+    @Test
+    fun `only non-security flags means open, even with WPS`() {
+        assertEquals(SecurityType.OPEN, SecurityType.fromCapabilities("[WPS][ESS]"))
+        assertEquals(SecurityType.WPA2, SecurityType.fromCapabilities("[WPA2-PSK-CCMP][WPS][ESS]"))
+        assertEquals(SecurityType.UNKNOWN, SecurityType.fromCapabilities("[OWE][ESS]"))
+    }
 }

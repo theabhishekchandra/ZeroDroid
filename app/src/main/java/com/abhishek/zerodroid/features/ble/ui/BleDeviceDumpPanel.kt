@@ -3,40 +3,21 @@ package com.abhishek.zerodroid.features.ble.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,25 +29,30 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdDivider
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIconButton
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdListRow
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdTag
 import com.abhishek.zerodroid.features.ble.domain.BleDeviceDump
 import com.abhishek.zerodroid.features.ble.domain.BleDeviceDumper
 import com.abhishek.zerodroid.features.ble.domain.DumpedCharacteristic
 import com.abhishek.zerodroid.features.ble.domain.DumpedService
 import com.abhishek.zerodroid.features.ble.domain.GattConnectionState
 import com.abhishek.zerodroid.features.ble.domain.GattExplorer
-import com.abhishek.zerodroid.ui.theme.TerminalAmber
-import com.abhishek.zerodroid.ui.theme.TerminalCyan
-import com.abhishek.zerodroid.ui.theme.TerminalGreen
-import com.abhishek.zerodroid.ui.theme.TerminalRed
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -118,6 +104,10 @@ private fun deleteDump(context: Context, fileName: String) {
 
 // ── Main Panel ──────────────────────────────────────────────────────────────────
 
+/** How many lines of JSON to preview before "Copy JSON" becomes the way to see the rest. */
+private const val PREVIEW_LINES = 18
+
+/** Reads every readable characteristic into one JSON file you can copy, keep or replay. */
 @Composable
 fun BleDeviceDumpPanel(
     explorer: GattExplorer,
@@ -127,545 +117,212 @@ fun BleDeviceDumpPanel(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val dumper = remember(explorer) { BleDeviceDumper(explorer) }
-
     val isConnected = connectionState.isConnected
 
     var isDumping by remember { mutableStateOf(false) }
-    var dumpProgress by remember { mutableStateOf<BleDeviceDumper.DumpProgress?>(null) }
+    var progress by remember { mutableStateOf<BleDeviceDumper.DumpProgress?>(null) }
     var currentDump by remember { mutableStateOf<BleDeviceDump?>(null) }
-
     var isReplaying by remember { mutableStateOf(false) }
-    var replayProgress by remember { mutableStateOf<BleDeviceDumper.DumpProgress?>(null) }
-
+    var note by remember { mutableStateOf<String?>(null) }
     val savedDumps = remember { mutableStateListOf<Pair<String, BleDeviceDump>>() }
-    var showSaved by remember { mutableStateOf(false) }
 
-    // Load saved dumps on first composition
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            loadSavedDumps(context)
-        }.let { dumps ->
-            savedDumps.clear()
-            savedDumps.addAll(dumps)
+    suspend fun refreshSaved() {
+        val dumps = withContext(Dispatchers.IO) { loadSavedDumps(context) }
+        savedDumps.clear()
+        savedDumps.addAll(dumps)
+    }
+    LaunchedEffect(Unit) { refreshSaved() }
+
+    val replay: (BleDeviceDump) -> Unit = { dump ->
+        scope.launch {
+            isReplaying = true
+            progress = null
+            dumper.replayWrites(dump) { progress = it }
+            isReplaying = false
+            note = "Replayed ${dump.services.sumOf { s -> s.characteristics.count { it.isReplayable } }} writes"
         }
     }
 
     Column(
-        modifier = modifier
+        modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
+            .heightIn(max = 640.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ── Dump Controls ───────────────────────────────────────────────────
-        TerminalCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = "> DEVICE DUMP",
-                    color = TerminalCyan,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                isDumping = true
-                                dumpProgress = null
-                                val result = dumper.dumpDevice { progress ->
-                                    dumpProgress = progress
-                                }
-                                currentDump = result
-                                isDumping = false
-
-                                // Auto-save
-                                if (result != null) {
-                                    withContext(Dispatchers.IO) {
-                                        saveDump(context, result)
-                                    }
-                                    // Refresh saved list
-                                    val refreshed = withContext(Dispatchers.IO) {
-                                        loadSavedDumps(context)
-                                    }
-                                    savedDumps.clear()
-                                    savedDumps.addAll(refreshed)
-                                }
-                            }
-                        },
-                        enabled = isConnected && !isDumping && !isReplaying,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = TerminalGreen.copy(alpha = 0.2f),
-                            contentColor = TerminalGreen
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.FileDownload,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Dump All", fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-                    }
-
-                    OutlinedButton(
-                        onClick = { showSaved = !showSaved },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = TerminalAmber
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.Save,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            "Saved (${savedDumps.size})",
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-
-                // Progress bar during dump
-                if (isDumping && dumpProgress != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val p = dumpProgress!!
-                    Text(
-                        text = "Reading ${p.current}/${p.total}: ${p.currentChar}",
-                        color = TerminalAmber,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(
-                        progress = { p.fraction },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = TerminalGreen,
-                        trackColor = TerminalGreen.copy(alpha = 0.1f)
-                    )
-                }
-
-                // Progress bar during replay
-                if (isReplaying && replayProgress != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val p = replayProgress!!
-                    Text(
-                        text = "Writing ${p.current}/${p.total}: ${p.currentChar}",
-                        color = TerminalAmber,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(
-                        progress = { p.fraction },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = TerminalCyan,
-                        trackColor = TerminalCyan.copy(alpha = 0.1f)
-                    )
-                }
+        val dump = currentDump
+        val p = progress
+        if (isDumping || isReplaying) {
+            Text(if (isDumping) "Reading every characteristic" else "Writing values back", style = ZdType.Heading, color = ZdColors.Text)
+            LinearProgressIndicator(
+                progress = { p?.fraction ?: 0f },
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)),
+                color = if (isDumping) ZdColors.Accent else ZdColors.Info,
+                trackColor = ZdColors.Surface3
+            )
+            p?.let {
+                Text("${it.current} / ${it.total} · ${it.currentChar}", style = ZdType.Mono, color = ZdColors.Text3, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-        }
-
-        // ── Dump Results ────────────────────────────────────────────────────
-        currentDump?.let { dump ->
-            DumpResultCard(
-                dump = dump,
-                isConnected = isConnected,
-                isReplaying = isReplaying,
-                onCopyJson = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText("BLE Dump", dump.toJson().toString(2))
-                    clipboard.setPrimaryClip(clip)
-                    Toast.makeText(context, "Dump JSON copied to clipboard", Toast.LENGTH_SHORT).show()
-                },
-                onReplay = {
+        } else if (dump == null) {
+            ZdButton(
+                "Dump every characteristic",
+                onClick = {
                     scope.launch {
-                        isReplaying = true
-                        replayProgress = null
-                        dumper.replayWrites(dump) { progress ->
-                            replayProgress = progress
+                        isDumping = true
+                        progress = null
+                        val result = dumper.dumpDevice { progress = it }
+                        currentDump = result
+                        isDumping = false
+                        if (result != null) {
+                            withContext(Dispatchers.IO) { saveDump(context, result) }
+                            refreshSaved()
+                            note = "Saved on this phone"
+                        } else {
+                            note = "Couldn’t read the device. Is it still connected?"
                         }
-                        isReplaying = false
-                        Toast.makeText(context, "Replay complete", Toast.LENGTH_SHORT).show()
                     }
-                }
+                },
+                enabled = isConnected,
+                icon = ZdIcons.Download,
+                modifier = Modifier.fillMaxWidth()
             )
+            if (!isConnected) ZdFootnote("Connect to the device first.", icon = ZdIcons.Info)
         }
 
-        // ── Saved Dumps ─────────────────────────────────────────────────────
-        AnimatedVisibility(visible = showSaved) {
-            TerminalCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "> SAVED DUMPS",
-                        color = TerminalAmber,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
+        dump?.let { DumpResult(it, isConnected && !isReplaying && !isDumping, onReplay = { replay(it) }, onCopy = {
+            copyJson(context, it)
+            note = "JSON copied"
+        }) }
+        note?.let { Text(it, style = ZdType.Caption, color = ZdColors.Accent) }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (savedDumps.isEmpty()) {
-                        Text(
-                            text = "No saved dumps found.",
-                            color = TerminalAmber.copy(alpha = 0.6f),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 12.sp
-                        )
-                    } else {
-                        savedDumps.forEach { (fileName, dump) ->
-                            SavedDumpRow(
-                                fileName = fileName,
-                                dump = dump,
-                                isConnected = isConnected,
-                                isReplaying = isReplaying,
-                                onLoad = { currentDump = dump },
-                                onReplay = {
-                                    scope.launch {
-                                        isReplaying = true
-                                        replayProgress = null
-                                        dumper.replayWrites(dump) { progress ->
-                                            replayProgress = progress
-                                        }
-                                        isReplaying = false
-                                        Toast.makeText(context, "Replay complete", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                onDelete = {
-                                    deleteDump(context, fileName)
-                                    savedDumps.removeAll { it.first == fileName }
-                                }
-                            )
-                            HorizontalDivider(
-                                color = TerminalGreen.copy(alpha = 0.1f),
-                                thickness = 1.dp
-                            )
-                        }
+        if (savedDumps.isNotEmpty()) {
+            ZdSectionLabel("Saved dumps", trailingText = "${savedDumps.size}")
+            ZdListCard(savedDumps.toList()) { (fileName, saved) ->
+                ZdListRow(
+                    title = saved.deviceName ?: saved.deviceAddress,
+                    subtitle = "${saved.formattedTimestamp} · ${saved.totalCharacteristics} characteristics",
+                    onClick = { currentDump = saved },
+                    trailing = {
+                        ZdIconButton(ZdIcons.Trash, contentDescription = "Delete dump", onClick = {
+                            deleteDump(context, fileName)
+                            savedDumps.removeAll { it.first == fileName }
+                            if (currentDump == saved) currentDump = null
+                        })
                     }
-                }
+                )
             }
         }
     }
 }
 
-// ── Dump Result Card ────────────────────────────────────────────────────────────
+private fun copyJson(context: Context, dump: BleDeviceDump) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("BLE dump", dump.toJson().toString(2)))
+}
 
 @Composable
-private fun DumpResultCard(
-    dump: BleDeviceDump,
-    isConnected: Boolean,
-    isReplaying: Boolean,
-    onCopyJson: () -> Unit,
-    onReplay: () -> Unit
-) {
-    TerminalCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier
-                .padding(12.dp)
-                .animateContentSize()
-        ) {
+private fun DumpResult(dump: BleDeviceDump, canWrite: Boolean, onReplay: () -> Unit, onCopy: () -> Unit) {
+    val replayable = dump.services.sumOf { s -> s.characteristics.count { it.isReplayable } }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(dump.deviceName ?: dump.deviceAddress, style = ZdType.Heading, color = ZdColors.Text)
             Text(
-                text = "> DUMP RESULT",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                "${dump.services.size} services · ${dump.totalCharacteristics} characteristics · MTU ${dump.mtu}",
+                style = ZdType.Caption,
+                color = ZdColors.Text3
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Summary
-            val writableCount = dump.services.sumOf { svc ->
-                svc.characteristics.count { it.isReplayable }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SummaryLine("Device", dump.deviceName ?: "Unknown")
-                SummaryLine("Address", dump.deviceAddress)
-                SummaryLine("Time", dump.formattedTimestamp)
-                SummaryLine("MTU", dump.mtu.toString())
-                SummaryLine("Services", dump.services.size.toString())
-                SummaryLine("Chars Read", "${dump.successfulReads} OK / ${dump.failedReads} failed")
-                SummaryLine("Writable", "$writableCount replayable")
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Action buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onCopyJson,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TerminalCyan)
-                ) {
-                    Icon(
-                        Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Copy JSON", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
-                }
-
-                Button(
-                    onClick = onReplay,
-                    enabled = isConnected && !isReplaying && writableCount > 0,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = TerminalCyan.copy(alpha = 0.2f),
-                        contentColor = TerminalCyan
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.Replay,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Replay Writes", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Expandable service details
-            dump.services.forEach { service ->
-                ExpandableServiceSection(service = service)
-                Spacer(modifier = Modifier.height(4.dp))
-            }
         }
-    }
-}
-
-// ── Expandable Service Section ──────────────────────────────────────────────────
-
-@Composable
-private fun ExpandableServiceSection(service: DumpedService) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize()
-    ) {
-        Row(
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("${dump.successfulReads} read", style = ZdType.Label, color = ZdColors.Accent, modifier = Modifier.weight(1f))
+            if (dump.failedReads > 0) Text("${dump.failedReads} need pairing or failed", style = ZdType.Label, color = ZdColors.Medium)
+        }
+        val lines = dump.toJson().toString(2).lines()
+        Text(
+            (lines.take(PREVIEW_LINES) + listOfNotNull(if (lines.size > PREVIEW_LINES) "  … ${lines.size - PREVIEW_LINES} more lines" else null)).joinToString("\n"),
+            style = ZdType.Mono,
+            color = ZdColors.Text2,
+            softWrap = false,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                contentDescription = null,
-                tint = TerminalCyan,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = service.displayName.ifBlank { service.uuid },
-                color = TerminalCyan,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                .clip(RoundedCornerShape(10.dp))
+                .background(ZdColors.Bg)
+                .horizontalScroll(rememberScrollState())
+                .padding(12.dp)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ZdButton("Copy JSON", onClick = onCopy, variant = ZdButtonVariant.Secondary, icon = ZdIcons.Copy, modifier = Modifier.weight(1f))
+            ZdButton(
+                if (replayable > 0) "Replay $replayable writes" else "Nothing to replay",
+                onClick = onReplay,
+                enabled = canWrite && replayable > 0,
+                icon = ZdIcons.Refresh,
                 modifier = Modifier.weight(1f)
             )
-            Text(
-                text = "${service.characteristics.size} chars",
-                color = TerminalGreen.copy(alpha = 0.5f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp
-            )
         }
+        if (replayable > 0) {
+            ZdFootnote("Replay writes the captured values back, which can change the device’s settings. Only use it on devices you own.", icon = ZdIcons.Warning)
+        }
+        ZdSectionLabel("Services", trailingText = "${dump.services.size}")
+        ZdListCard(dump.services) { ServiceSection(it) }
+    }
+}
 
-        AnimatedVisibility(visible = expanded) {
-            Column(
-                modifier = Modifier.padding(start = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                service.characteristics.forEach { char ->
-                    CharacteristicDumpRow(char = char)
-                }
+@Composable
+private fun ServiceSection(service: DumpedService) {
+    var expanded by remember { mutableStateOf(false) }
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(ZdIcons.ChevronDown, contentDescription = null, tint = ZdColors.Text3, modifier = Modifier.size(16.dp).rotate(if (expanded) 180f else 0f))
+            Text(service.displayName.ifBlank { service.uuid }, style = ZdType.Label, color = ZdColors.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text("${service.characteristics.size}", style = ZdType.Path, color = ZdColors.Text3)
+        }
+        if (expanded) {
+            service.characteristics.forEach { char ->
+                ZdDivider()
+                CharacteristicRow(char)
             }
         }
     }
 }
 
-// ── Characteristic Row ──────────────────────────────────────────────────────────
-
 @Composable
-private fun CharacteristicDumpRow(char: DumpedCharacteristic) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = char.displayName.ifBlank { char.uuid },
-            color = if (char.value != null) TerminalGreen else {
-                if (char.readError != null) TerminalRed else TerminalAmber.copy(alpha = 0.5f)
-            },
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 11.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        if (char.value != null) {
-            Text(
-                text = "HEX: ${char.hexString}",
-                color = TerminalGreen.copy(alpha = 0.8f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            // Show ASCII if there are printable characters
-            val ascii = char.value.map { b ->
-                val c = b.toInt().toChar()
-                if (c.isLetterOrDigit() || c.isWhitespace() || c in "!@#\$%^&*()-_=+[]{}|;:',.<>?/`~\"\\") c else '.'
-            }.joinToString("")
-            Text(
-                text = "ASCII: $ascii",
-                color = TerminalGreen.copy(alpha = 0.6f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        } else if (char.readError != null) {
-            Text(
-                text = "ERROR: ${char.readError}",
-                color = TerminalRed.copy(alpha = 0.8f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        } else {
-            Text(
-                text = "not readable",
-                color = TerminalAmber.copy(alpha = 0.4f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp
-            )
+private fun CharacteristicRow(char: DumpedCharacteristic) {
+    Column(Modifier.fillMaxWidth().padding(start = 40.dp, end = 14.dp, top = 8.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(char.displayName.ifBlank { char.uuid }, style = ZdType.BodySmall, color = ZdColors.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            propertyTags(char.properties).forEach { ZdTag(it) }
         }
-
-        // Property badges
-        val props = buildList {
-            if ((char.properties and 0x02) != 0) add("R")
-            if ((char.properties and 0x04) != 0) add("W")
-            if ((char.properties and 0x08) != 0) add("WNR")
-            if ((char.properties and 0x10) != 0) add("N")
-            if ((char.properties and 0x20) != 0) add("I")
-        }
-        if (props.isNotEmpty()) {
-            Text(
-                text = props.joinToString(" | "),
-                color = TerminalCyan.copy(alpha = 0.5f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 9.sp
-            )
+        when {
+            char.value != null -> {
+                Text(char.hexString, style = ZdType.Mono, color = ZdColors.Text2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                printable(char.value)?.let { Text("“$it”", style = ZdType.Caption, color = ZdColors.Text3, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
+            char.readError != null -> Text(char.readError, style = ZdType.Caption, color = ZdColors.Medium, maxLines = 2)
+            else -> Text("Not readable", style = ZdType.Caption, color = ZdColors.Text3)
         }
     }
 }
 
-// ── Summary Line ────────────────────────────────────────────────────────────────
-
-@Composable
-private fun SummaryLine(label: String, value: String) {
-    Row {
-        Text(
-            text = "$label: ",
-            color = TerminalGreen.copy(alpha = 0.6f),
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp
-        )
-        Text(
-            text = value,
-            color = TerminalGreen,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
+/** R, W, WNR, N, I from the GATT property bits. */
+internal fun propertyTags(properties: Int): List<String> = buildList {
+    if (properties and 0x02 != 0) add("R")
+    if (properties and 0x04 != 0) add("WNR")
+    if (properties and 0x08 != 0) add("W")
+    if (properties and 0x10 != 0) add("N")
+    if (properties and 0x20 != 0) add("I")
 }
 
-// ── Saved Dump Row ──────────────────────────────────────────────────────────────
-
-@Composable
-private fun SavedDumpRow(
-    fileName: String,
-    dump: BleDeviceDump,
-    isConnected: Boolean,
-    isReplaying: Boolean,
-    onLoad: () -> Unit,
-    onReplay: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = dump.deviceName ?: dump.deviceAddress,
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = "${dump.formattedTimestamp} | ${dump.totalCharacteristics} chars",
-                color = TerminalGreen.copy(alpha = 0.5f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp
-            )
-        }
-
-        IconButton(onClick = onLoad, modifier = Modifier.size(32.dp)) {
-            Icon(
-                Icons.Default.PlayArrow,
-                contentDescription = "Load dump",
-                tint = TerminalCyan,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-
-        IconButton(
-            onClick = onReplay,
-            enabled = isConnected && !isReplaying,
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                Icons.Default.Replay,
-                contentDescription = "Replay writes",
-                tint = if (isConnected && !isReplaying) TerminalAmber else TerminalAmber.copy(alpha = 0.3f),
-                modifier = Modifier.size(16.dp)
-            )
-        }
-
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = "Delete dump",
-                tint = TerminalRed.copy(alpha = 0.7f),
-                modifier = Modifier.size(16.dp)
-            )
-        }
-    }
+/** The value as text when it is mostly printable (a name, a version string), else null. */
+internal fun printable(bytes: ByteArray): String? {
+    if (bytes.isEmpty()) return null
+    val text = bytes.toString(Charsets.UTF_8).trimEnd('\u0000')
+    val ok = text.count { it.isLetterOrDigit() || it in " .,-_:/()+#" }
+    return text.takeIf { it.isNotEmpty() && ok >= text.length * 0.8 }
 }

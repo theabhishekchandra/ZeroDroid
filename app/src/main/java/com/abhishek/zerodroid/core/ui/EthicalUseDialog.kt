@@ -22,8 +22,9 @@ import androidx.core.content.edit
 private const val PREFS_NAME = "zerodroid_prefs"
 private const val KEY_ETHICAL_ACCEPTED = "ethical_use_accepted"
 
+/** Shows the agreement until accepted; returns whether it has been. */
 @Composable
-fun EthicalUseDialog() {
+fun rememberEthicalAgreement(): Boolean {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences(PREFS_NAME, 0)
     var accepted by rememberSaveable { mutableStateOf(prefs.getBoolean(KEY_ETHICAL_ACCEPTED, false)) }
@@ -65,4 +66,5 @@ fun EthicalUseDialog() {
             shape = RoundedCornerShape(22.dp)
         )
     }
+    return accepted
 }

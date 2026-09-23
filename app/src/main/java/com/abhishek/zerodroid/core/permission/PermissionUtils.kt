@@ -86,4 +86,6 @@ object PermissionUtils {
             add(Manifest.permission.BLUETOOTH_CONNECT)
         }
     }
+
+    fun privacyScorePermissions(): List<String> = (wifiPermissions() + blePermissions()).distinct()
 }

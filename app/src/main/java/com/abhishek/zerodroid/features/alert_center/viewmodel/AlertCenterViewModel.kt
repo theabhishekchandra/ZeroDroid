@@ -3,6 +3,7 @@ package com.abhishek.zerodroid.features.alert_center.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abhishek.zerodroid.core.alerts.AlertCenterRepository
+import com.abhishek.zerodroid.core.alerts.AlertResolution
 import com.abhishek.zerodroid.core.alerts.UnifiedAlert
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,7 +31,20 @@ class AlertCenterViewModel @Inject constructor(
         viewModelScope.launch { repository.clearAll() }
     }
 
+    fun resolve(alert: UnifiedAlert, resolution: AlertResolution) {
+        viewModelScope.launch { repository.resolve(alert.id, resolution) }
+    }
+
+    fun reopen(alert: UnifiedAlert) {
+        viewModelScope.launch { repository.reopen(alert.id) }
+    }
+
+    fun clearResolved() {
+        viewModelScope.launch { repository.clearResolved() }
+    }
+
     init {
+        viewModelScope.launch { repository.pruneResolved() }
         observeDemoRequests(demoBus, DemoData.Routes.ALERT_CENTER) { loadDemoData() }
     }
 

@@ -20,14 +20,26 @@ enum class NdefContentType {
     URI, TEXT, MIME, SMART_POSTER, WIFI, VCARD, UNKNOWN
 }
 
+enum class NfcTab(val label: String) { READ("Read"), WRITE("Write"), MIFARE("MIFARE"), EMULATE("Emulate") }
+
 data class NfcState(
     val isNfcAvailable: Boolean = false,
     val isNfcEnabled: Boolean = false,
     val lastTag: NfcTagInfo? = null,
     val tagHistory: List<NfcTagInfo> = emptyList(),
-    val writeMode: Boolean = false,
-    val writeResult: WriteResult? = null
-)
+    val tab: NfcTab = NfcTab.READ,
+    val writeResult: WriteResult? = null,
+    /** Sectors from the last MIFARE Classic tag read on the MIFARE tab. */
+    val mifareSectors: List<MifareSectorData> = emptyList(),
+    val isReadingMifare: Boolean = false,
+    val mifareMessage: String? = null,
+    val customKeys: List<ByteArray> = emptyList(),
+    /** What this phone serves when another reader taps it (HCE Type 4 tag). */
+    val emulatedPayload: String = "ZeroDroid HCE",
+    val emulatedIsUrl: Boolean = false
+) {
+    val writeMode: Boolean get() = tab == NfcTab.WRITE
+}
 
 sealed class WriteResult {
     data object Success : WriteResult()

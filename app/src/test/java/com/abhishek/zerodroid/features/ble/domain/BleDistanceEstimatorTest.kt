@@ -57,4 +57,13 @@ class BleDistanceEstimatorTest {
         assertEquals("○", BleDistanceEstimator.getProximityLabel(5.0))
         assertEquals("◌", BleDistanceEstimator.getProximityLabel(15.0))
     }
+
+    @Test
+    fun `range label is a span past a metre and capped far away`() {
+        org.junit.Assert.assertEquals("~1 m", BleDistanceEstimator.rangeLabel(-55))
+        val mid = BleDistanceEstimator.rangeLabel(-70)
+        org.junit.Assert.assertTrue(mid, Regex("~\\d+–\\d+ m").matches(mid))
+        org.junit.Assert.assertEquals("30 m+", BleDistanceEstimator.rangeLabel(-100))
+        org.junit.Assert.assertEquals("range unknown", BleDistanceEstimator.rangeLabel(0))
+    }
 }

@@ -14,6 +14,9 @@ import com.abhishek.zerodroid.features.hidden_camera.domain.ThreatLevel
 import com.abhishek.zerodroid.features.sensors.domain.MetalDetector
 import com.abhishek.zerodroid.features.sensors.domain.SensorDataCollector
 import com.abhishek.zerodroid.features.wifi.domain.WifiScanner
+import com.abhishek.zerodroid.core.sessions.ItemKind
+import com.abhishek.zerodroid.core.sessions.SessionItem
+import com.abhishek.zerodroid.core.sessions.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +24,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 import javax.inject.Inject
 import com.abhishek.zerodroid.core.debug.DemoDataBus
 import com.abhishek.zerodroid.core.debug.DemoData
@@ -34,8 +36,13 @@ class HiddenCameraViewModel @Inject constructor(
     private val bleScanner: BleScanner,
     private val sensorDataCollector: SensorDataCollector,
     private val alertCenterRepository: AlertCenterRepository,
+    private val sessions: SessionRepository,
     private val demoBus: DemoDataBus
 ) : ViewModel() {
+
+    /** When the current run started; null when no run is in progress. */
+    private var runStartedAt: Long? = null
+
 
     private val _state = MutableStateFlow(HiddenCameraScanState())
     val state: StateFlow<HiddenCameraScanState> = _state.asStateFlow()
@@ -60,9 +67,14 @@ class HiddenCameraViewModel @Inject constructor(
         startBleScan()
         startMagneticScan()
         _state.value = _state.value.copy(isScanning = true)
+        runStartedAt = System.currentTimeMillis()
     }
 
     fun stopScan() {
+        runStartedAt?.let { started ->
+            runStartedAt = null
+            recordSession(started)
+        }
         wifiJob?.cancel()
         bleJob?.cancel()
         magneticJob?.cancel()
@@ -250,6 +262,27 @@ class HiddenCameraViewModel @Inject constructor(
      */
     private fun CameraDetection.dedupeKey(): String =
         if (source == DetectionSource.MAGNETIC) source.name else "$source:$title:$detail"
+
+    private fun recordSession(startedAt: Long) {
+        val detections = _state.value.detections
+        val likely = detections.count { it.threatLevel == ThreatLevel.HIGH }
+        sessions.recordInBackground(
+            tool = "hidden_camera",
+            title = "Hidden camera check",
+            startedAt = startedAt,
+            items = detections.map { d ->
+                SessionItem(
+                    key = "${d.source}:${d.title}",
+                    label = d.title,
+                    kind = ItemKind.CAMERA,
+                    rssi = d.rssi,
+                    detail = d.detail,
+                    flagged = d.threatLevel != ThreatLevel.LOW
+                )
+            },
+            summary = "${detections.size} signal${if (detections.size == 1) "" else "s"} · $likely likely"
+        )
+    }
 
     override fun onCleared() {
         stopScan()

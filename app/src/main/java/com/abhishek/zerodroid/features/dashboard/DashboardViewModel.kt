@@ -119,7 +119,7 @@ class DashboardViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val alertSummary: StateFlow<AlertSummary> = alertCenterRepository.alerts
-        .map { AlertSummary.from(it) }
+        .map { alerts -> AlertSummary.from(alerts.filter { it.isOpen }) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AlertSummary())
 
     val toolSupport: ToolSupport

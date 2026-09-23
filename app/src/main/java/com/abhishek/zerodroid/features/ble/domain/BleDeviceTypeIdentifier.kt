@@ -25,7 +25,13 @@ object BleDeviceTypeIdentifier {
         Regex("(?i)(car|tesla|bmw|ford|obd|elm327)") to BleDeviceType("Automotive", "car", TerminalAmber)
     )
 
+    /** 16-bit service UUIDs registered to tracker makers (Tile, Samsung SmartTag). */
+    private val trackerServiceIds = setOf("feed", "feec", "fd5a")
+
     fun identify(name: String?, serviceUuids: List<String> = emptyList()): BleDeviceType {
+        if (serviceUuids.any { it.lowercase().removePrefix("0000").take(4) in trackerServiceIds }) {
+            return BleDeviceType("Tracker", "location", TerminalAmber)
+        }
         if (name != null) {
             for ((pattern, type) in namePatterns) {
                 if (pattern.containsMatchIn(name)) return type

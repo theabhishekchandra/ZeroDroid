@@ -1,46 +1,19 @@
 package com.abhishek.zerodroid.features.wifi_direct.ui
 
+import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.FilePresent
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -51,584 +24,221 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdListRow
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdSeverity
+import com.abhishek.zerodroid.core.ui.zd.ZdSeverityBadge
+import com.abhishek.zerodroid.core.ui.zd.ZdTextField
 import com.abhishek.zerodroid.features.wifi_direct.domain.TransferHistoryEntry
+import com.abhishek.zerodroid.features.wifi_direct.domain.TransferProgress
 import com.abhishek.zerodroid.features.wifi_direct.domain.TransferState
 import com.abhishek.zerodroid.features.wifi_direct.domain.WifiDirectFileTransfer
-import com.abhishek.zerodroid.ui.theme.TerminalAmber
-import com.abhishek.zerodroid.ui.theme.TerminalCyan
-import com.abhishek.zerodroid.ui.theme.TerminalGreen
-import com.abhishek.zerodroid.ui.theme.TerminalRed
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** The group owner's address on every Wi-Fi Direct group Android creates. */
 private const val GROUP_OWNER_IP = "192.168.49.1"
 
+private data class PickedFile(val uri: Uri, val name: String, val size: Long?)
+
+/** Send one file to the other device in the group, or wait to receive one. */
 @Composable
 fun WifiDirectTransferPanel(
     isGroupOwner: Boolean,
-    groupOwnerAddress: String?,
+    @Suppress("UNUSED_PARAMETER") groupOwnerAddress: String?,
     transfer: WifiDirectFileTransfer,
     modifier: Modifier = Modifier
 ) {
     val progress by transfer.progress.collectAsState()
     val history by transfer.history.collectAsState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedFileName by remember { mutableStateOf<String?>(null) }
-    var targetIp by remember { mutableStateOf(if (!isGroupOwner) GROUP_OWNER_IP else "") }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        selectedFileUri = uri
-        selectedFileName = uri?.lastPathSegment?.substringAfterLast('/') ?: uri?.toString()
+    var picked by remember { mutableStateOf<PickedFile?>(null) }
+    // Clients always reach the owner at .49.1; the owner has to be told the client's address.
+    var targetIp by remember(isGroupOwner) { mutableStateOf(if (isGroupOwner) "" else GROUP_OWNER_IP) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        picked = uri?.let { describe(context, it) }
     }
+    val active = progress.state in setOf(TransferState.WaitingForConnection, TransferState.Connecting, TransferState.Transferring)
 
-    val isTransferActive = progress.state == TransferState.Transferring ||
-            progress.state == TransferState.WaitingForConnection ||
-            progress.state == TransferState.Connecting
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Role Indicator
-        RoleIndicatorSection(isGroupOwner = isGroupOwner)
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Transfer Progress (shown when active or completed/failed)
-        AnimatedVisibility(
-            visible = progress.state != TransferState.Idle,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column {
-                TransferProgressSection(
-                    progress = progress,
-                    onCancel = { transfer.cancel() }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (progress.state != TransferState.Idle) {
+            ProgressCard(progress, onCancel = transfer::cancel)
         }
 
-        // Send File Section
-        AnimatedVisibility(visible = !isTransferActive) {
-            Column {
-                SendFileSection(
-                    selectedFileName = selectedFileName,
-                    targetIp = targetIp,
-                    isGroupOwner = isGroupOwner,
-                    onSelectFile = { filePickerLauncher.launch(arrayOf("*/*")) },
-                    onTargetIpChanged = { targetIp = it },
-                    onSend = {
-                        val uri = selectedFileUri ?: return@SendFileSection
-                        val address = targetIp.ifBlank { return@SendFileSection }
-                        scope.launch {
-                            transfer.sendFile(address, uri)
-                        }
-                    },
-                    canSend = selectedFileUri != null && targetIp.isNotBlank()
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-        }
-
-        // Receive File Section
-        AnimatedVisibility(visible = !isTransferActive) {
-            Column {
-                ReceiveFileSection(
-                    onStartListening = {
-                        scope.launch { transfer.startReceiving() }
+        if (!active) {
+            ZdCard(verticalSpacing = 12.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ZdIconTile(ZdIcons.Document, tint = ZdColors.Text2, background = ZdColors.Surface2)
+                    Column(Modifier.weight(1f)) {
+                        Text(picked?.name ?: "No file chosen", style = ZdType.Label, color = ZdColors.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            picked?.size?.let { formatBytes(it) } ?: "Any file; it goes straight to the other phone",
+                            style = ZdType.Caption,
+                            color = ZdColors.Text3
+                        )
                     }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-        }
-
-        // Transfer History
-        if (history.isNotEmpty()) {
-            TransferHistorySection(history = history)
-        }
-    }
-}
-
-@Composable
-private fun RoleIndicatorSection(isGroupOwner: Boolean) {
-    TerminalCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "> DEVICE ROLE:",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (isGroupOwner) "GROUP OWNER (SERVER)" else "CLIENT",
-                color = if (isGroupOwner) TerminalAmber else TerminalCyan,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun SendFileSection(
-    selectedFileName: String?,
-    targetIp: String,
-    isGroupOwner: Boolean,
-    onSelectFile: () -> Unit,
-    onTargetIpChanged: (String) -> Unit,
-    onSend: () -> Unit,
-    canSend: Boolean
-) {
-    TerminalCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "> SEND FILE",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // File selection
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedButton(
-                    onClick = onSelectFile,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TerminalCyan)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FilePresent,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Select File",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp
+                    ZdButton(if (picked == null) "Choose" else "Change", onClick = { picker.launch(arrayOf("*/*")) }, variant = ZdButtonVariant.Ghost, height = 36.dp)
+                }
+                if (isGroupOwner) {
+                    ZdTextField(
+                        value = targetIp,
+                        onValueChange = { targetIp = it.trim() },
+                        label = "SEND TO (CLIENT IP)",
+                        placeholder = "192.168.49.x",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
                     )
                 }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = selectedFileName ?: "No file selected",
-                    color = if (selectedFileName != null) TerminalGreen else TerminalAmber.copy(alpha = 0.5f),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ZdButton(
+                        "Send file",
+                        onClick = {
+                            val file = picked ?: return@ZdButton
+                            scope.launch { transfer.sendFile(targetIp, file.uri) }
+                        },
+                        enabled = picked != null && targetIp.isNotBlank(),
+                        icon = ZdIcons.Send,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ZdButton(
+                        "Receive",
+                        onClick = { scope.launch { transfer.startReceiving() } },
+                        variant = ZdButtonVariant.Secondary,
+                        icon = ZdIcons.Download,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Target IP
-            OutlinedTextField(
-                value = targetIp,
-                onValueChange = onTargetIpChanged,
-                label = {
-                    Text(
-                        text = "Target IP Address",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp
-                    )
-                },
-                placeholder = {
-                    Text(
-                        text = if (isGroupOwner) "Enter client IP" else GROUP_OWNER_IP,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp
-                    )
-                },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TerminalGreen,
-                    unfocusedTextColor = TerminalGreen,
-                    cursorColor = TerminalGreen,
-                    focusedBorderColor = TerminalCyan,
-                    unfocusedBorderColor = TerminalGreen.copy(alpha = 0.3f),
-                    focusedLabelColor = TerminalCyan,
-                    unfocusedLabelColor = TerminalGreen.copy(alpha = 0.5f)
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 13.sp
-                )
+            ZdFootnote(
+                if (isGroupOwner) "You’re the group owner. Tap Receive to wait for a file, or enter the client’s IP (shown on its screen) to send."
+                else "Tap Receive on the other phone first, then Send here."
             )
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Send button
-            Button(
-                onClick = onSend,
-                enabled = canSend,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = TerminalGreen,
-                    disabledContainerColor = TerminalGreen.copy(alpha = 0.2f)
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "SEND",
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
-            }
+        if (history.isNotEmpty()) {
+            ZdSectionLabel("This session", trailingText = "${history.size}")
+            ZdListCard(history.reversed()) { HistoryRow(it) }
         }
     }
 }
 
 @Composable
-private fun ReceiveFileSection(onStartListening: () -> Unit) {
-    TerminalCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "> RECEIVE FILE",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Open a server socket to accept incoming file transfers from the connected peer.",
-                color = TerminalGreen.copy(alpha = 0.6f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = onStartListening,
-                colors = ButtonDefaults.buttonColors(containerColor = TerminalCyan),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CloudDownload,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+private fun ProgressCard(progress: TransferProgress, onCancel: () -> Unit) {
+    val failed = progress.state == TransferState.Failed
+    val done = progress.state == TransferState.Completed
+    ZdCard(
+        borderColor = when {
+            failed -> ZdColors.Critical.copy(alpha = 0.4f)
+            done -> ZdColors.AccentBorder
+            else -> ZdColors.Border
+        },
+        verticalSpacing = 10.dp
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(ZdIcons.Document, contentDescription = null, tint = ZdColors.Text2, modifier = Modifier.size(20.dp))
+            Column(Modifier.weight(1f)) {
                 Text(
-                    text = "START LISTENING",
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TransferProgressSection(
-    progress: com.abhishek.zerodroid.features.wifi_direct.domain.TransferProgress,
-    onCancel: () -> Unit
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "waiting_pulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_alpha"
-    )
-
-    val stateColor = when (progress.state) {
-        TransferState.Completed -> TerminalGreen
-        TransferState.Failed -> TerminalRed
-        TransferState.WaitingForConnection -> TerminalAmber
-        TransferState.Connecting -> TerminalCyan
-        TransferState.Transferring -> TerminalCyan
-        TransferState.Idle -> TerminalGreen
-    }
-
-    val stateText = when (progress.state) {
-        TransferState.Idle -> "IDLE"
-        TransferState.WaitingForConnection -> "WAITING FOR CONNECTION..."
-        TransferState.Connecting -> "CONNECTING..."
-        TransferState.Transferring -> "TRANSFERRING"
-        TransferState.Completed -> "TRANSFER COMPLETE"
-        TransferState.Failed -> "TRANSFER FAILED"
-    }
-
-    val isWaiting = progress.state == TransferState.WaitingForConnection ||
-            progress.state == TransferState.Connecting
-
-    val isActive = progress.state == TransferState.Transferring ||
-            progress.state == TransferState.WaitingForConnection ||
-            progress.state == TransferState.Connecting
-
-    TerminalCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "> TRANSFER STATUS",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Status indicator
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = if (isWaiting) Modifier.alpha(pulseAlpha) else Modifier
-            ) {
-                Icon(
-                    imageVector = when (progress.state) {
-                        TransferState.Completed -> Icons.Default.CheckCircle
-                        TransferState.Failed -> Icons.Default.Error
-                        TransferState.Transferring -> Icons.Default.CloudUpload
-                        else -> Icons.Default.CloudDownload
+                    progress.fileName.ifBlank {
+                        when (progress.state) {
+                            TransferState.WaitingForConnection -> "Waiting for the other phone…"
+                            TransferState.Connecting -> "Connecting…"
+                            else -> "Transfer"
+                        }
                     },
-                    contentDescription = null,
-                    tint = stateColor,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stateText,
-                    color = stateColor,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // File name
-            if (progress.fileName.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "File: ${progress.fileName}",
-                    color = TerminalGreen,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
+                    style = ZdType.Label,
+                    color = ZdColors.Text,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Text(progressLine(progress), style = ZdType.Caption, color = if (failed) ZdColors.Critical else ZdColors.Text3)
             }
-
-            // Progress bar for active transfer
-            if (progress.state == TransferState.Transferring) {
-                Spacer(modifier = Modifier.height(10.dp))
-
-                LinearProgressIndicator(
-                    progress = { progress.progressPercent },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp),
-                    color = TerminalCyan,
-                    trackColor = TerminalGreen.copy(alpha = 0.15f)
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "${formatBytes(progress.bytesTransferred)} / ${formatBytes(progress.totalBytes)}",
-                        color = TerminalGreen.copy(alpha = 0.7f),
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp
-                    )
-                    Text(
-                        text = "${(progress.progressPercent * 100).toInt()}%",
-                        color = TerminalCyan,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Speed
-                if (progress.speedBytesPerSec > 0) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Speed: ${formatBytes(progress.speedBytesPerSec)}/s",
-                        color = TerminalAmber,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-
-            // Error message
-            if (progress.error != null) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Error: ${progress.error}",
-                    color = TerminalRed,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp
-                )
-            }
-
-            // Cancel button
-            if (isActive) {
-                Spacer(modifier = Modifier.height(10.dp))
-                OutlinedButton(
-                    onClick = onCancel,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TerminalRed),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Cancel,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "CANCEL",
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
+            when {
+                done -> ZdSeverityBadge(ZdSeverity.CLEAN, label = "DONE")
+                failed -> ZdSeverityBadge(ZdSeverity.HIGH, label = "FAILED")
+                else -> ZdButton("Cancel", onClick = onCancel, variant = ZdButtonVariant.Ghost, height = 36.dp)
             }
         }
+        if (progress.state == TransferState.Transferring || done) {
+            LinearProgressIndicator(
+                progress = { if (done) 1f else progress.progressPercent },
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(3.dp)),
+                color = ZdColors.Accent,
+                trackColor = ZdColors.Surface3
+            )
+        }
     }
+}
+
+/** "42.1 of 68.0 MB · 9.8 MB/s · 3 s left". */
+internal fun progressLine(p: TransferProgress): String = when (p.state) {
+    TransferState.Idle -> ""
+    TransferState.WaitingForConnection -> "Listening on port ${WifiDirectFileTransfer.PORT}"
+    TransferState.Connecting -> "Opening a connection"
+    TransferState.Failed -> p.error ?: "The connection dropped"
+    TransferState.Completed -> formatBytes(p.totalBytes.takeIf { it > 0 } ?: p.bytesTransferred)
+    TransferState.Transferring -> buildList {
+        add(if (p.totalBytes > 0) "${formatBytes(p.bytesTransferred)} of ${formatBytes(p.totalBytes)}" else formatBytes(p.bytesTransferred))
+        if (p.speedBytesPerSec > 0) {
+            add("${formatBytes(p.speedBytesPerSec)}/s")
+            if (p.totalBytes > p.bytesTransferred) add("${(p.totalBytes - p.bytesTransferred) / p.speedBytesPerSec} s left")
+        }
+    }.joinToString(" · ")
 }
 
 @Composable
-private fun TransferHistorySection(history: List<TransferHistoryEntry>) {
-    TerminalCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "> TRANSFER HISTORY",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
+private fun HistoryRow(entry: TransferHistoryEntry) {
+    ZdListRow(
+        title = entry.fileName.ifBlank { "Unnamed file" },
+        titleMono = false,
+        subtitle = "${if (entry.isSent) "Sent" else "Received"} · ${formatBytes(entry.fileSize)} · ${timeFormat.format(Date(entry.timestamp))}",
+        leading = {
+            ZdIconTile(
+                if (entry.isSent) ZdIcons.Send else ZdIcons.Download,
+                tint = if (entry.success) ZdColors.Accent else ZdColors.Critical,
+                background = if (entry.success) ZdColors.AccentBg else ZdColors.CriticalBg
             )
+        },
+        trailing = { if (!entry.success) ZdSeverityBadge(ZdSeverity.HIGH, label = "FAILED") }
+    )
+}
 
-            Spacer(modifier = Modifier.height(8.dp))
+private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-            LazyColumn(
-                modifier = Modifier.height((history.size.coerceAtMost(5) * 56).dp)
-            ) {
-                items(history) { entry ->
-                    TransferHistoryItem(entry = entry)
-                    HorizontalDivider(
-                        color = TerminalGreen.copy(alpha = 0.1f),
-                        thickness = 1.dp
-                    )
-                }
+internal fun formatBytes(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> String.format(Locale.US, "%.1f KB", bytes / 1024.0)
+    bytes < 1024L * 1024 * 1024 -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024))
+    else -> String.format(Locale.US, "%.2f GB", bytes / (1024.0 * 1024 * 1024))
+}
+
+/** The picked file's real name and size, from the document provider. */
+private fun describe(context: Context, uri: Uri): PickedFile {
+    var name: String? = null
+    var size: Long? = null
+    runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                name = c.getString(0)
+                size = if (c.isNull(1)) null else c.getLong(1)
             }
         }
     }
-}
-
-@Composable
-private fun TransferHistoryItem(entry: TransferHistoryEntry) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = if (entry.isSent) Icons.Default.CloudUpload else Icons.Default.CloudDownload,
-            contentDescription = null,
-            tint = if (entry.success) TerminalGreen else TerminalRed,
-            modifier = Modifier.size(16.dp)
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = entry.fileName.ifBlank { "Unknown" },
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row {
-                Text(
-                    text = if (entry.isSent) "Sent" else "Received",
-                    color = TerminalCyan.copy(alpha = 0.7f),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = formatBytes(entry.fileSize),
-                    color = TerminalAmber.copy(alpha = 0.7f),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = formatTimestamp(entry.timestamp),
-                    color = TerminalGreen.copy(alpha = 0.4f),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp
-                )
-            }
-        }
-
-        Icon(
-            imageVector = if (entry.success) Icons.Default.CheckCircle else Icons.Default.Error,
-            contentDescription = null,
-            tint = if (entry.success) TerminalGreen else TerminalRed,
-            modifier = Modifier.size(14.dp)
-        )
-    }
-}
-
-private fun formatBytes(bytes: Long): String {
-    return when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
-        bytes < 1024 * 1024 * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
-        else -> "%.2f GB".format(bytes / (1024.0 * 1024.0 * 1024.0))
-    }
-}
-
-private fun formatTimestamp(timestamp: Long): String {
-    val formatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    return formatter.format(Date(timestamp))
+    return PickedFile(uri, name ?: uri.lastPathSegment?.substringAfterLast('/') ?: "file", size)
 }

@@ -27,11 +27,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -52,6 +60,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.abhishek.zerodroid.ui.theme.ZdColors
 import com.abhishek.zerodroid.ui.theme.ZdType
+import kotlinx.coroutines.delay
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
@@ -189,6 +198,70 @@ fun ZdScanControlBar(
     }
 }
 
+/**
+ * Elapsed milliseconds since [running] last became true, ticking once a second; 0 when stopped.
+ * Keeps scan timers in the UI so tools don't each need their own clock.
+ */
+@Composable
+fun rememberRunClock(running: Boolean): Long {
+    var startedAt by rememberSaveable { mutableStateOf<Long?>(null) }
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(running) {
+        if (running) {
+            if (startedAt == null) startedAt = System.currentTimeMillis()
+            while (true) {
+                now = System.currentTimeMillis()
+                delay(1_000)
+            }
+        } else {
+            startedAt = null
+        }
+    }
+    return startedAt?.let { (now - it).coerceAtLeast(0L) } ?: 0L
+}
+
+/** "auto-stops in 0:18" style countdown text, never negative. */
+fun autoStopText(elapsedMs: Long, autoStopMs: Long): String {
+    val remaining = ((autoStopMs - elapsedMs).coerceAtLeast(0L) + 999) / 1000
+    return "auto-stops in %d:%02d".format(remaining / 60, remaining % 60)
+}
+
+/**
+ * The standard tool scan bar with a live clock: "Scanning · 00:12" over
+ * "Recording · auto-stops in 0:18" while running, and what was kept once stopped.
+ */
+@Composable
+fun ZdToolScanBar(
+    running: Boolean,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier,
+    verb: String = "Scanning",
+    runningNote: String? = "Recording",
+    autoStopMs: Long? = null,
+    idleLabel: String = "Stopped",
+    idleNote: String? = null,
+    startLabel: String = "Start",
+    stopLabel: String = "Stop"
+) {
+    val elapsed = rememberRunClock(running)
+    val detail = listOfNotNull(runningNote, autoStopMs?.let { autoStopText(elapsed, it) })
+        .joinToString(" · ")
+        .ifEmpty { null }
+    ZdScanControlBar(
+        running = running,
+        onStart = onStart,
+        onStop = onStop,
+        modifier = modifier,
+        runningLabel = "$verb · ${formatElapsed(elapsed)}",
+        runningDetail = detail,
+        idleLabel = idleLabel,
+        idleDetail = idleNote,
+        startLabel = startLabel,
+        stopLabel = stopLabel
+    )
+}
+
 /** Pulsing accent dot that marks something as live. */
 @Composable
 fun LiveDot(modifier: Modifier = Modifier, color: Color = ZdColors.Accent) {
@@ -243,13 +316,14 @@ fun ZdStatePanel(
     primaryIcon: ImageVector? = null,
     secondaryAction: Pair<String, () -> Unit>? = null,
     linkAction: Pair<String, () -> Unit>? = null,
+    /** False when placed inside a list: no fill, no own scrolling. */
+    fullScreen: Boolean = true,
     extra: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     Column(
         modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 28.dp, vertical = 24.dp),
+            .then(if (fullScreen) Modifier.fillMaxSize().verticalScroll(rememberScrollState()) else Modifier.fillMaxWidth())
+            .padding(horizontal = if (fullScreen) 28.dp else 12.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
     ) {
         if (icon != null) {
@@ -334,4 +408,28 @@ fun ZdFootnote(text: String, modifier: Modifier = Modifier, icon: ImageVector? =
         if (icon != null) Icon(icon, contentDescription = null, tint = ZdColors.Text3, modifier = Modifier.size(14.dp).padding(top = 2.dp))
         Text(text, style = ZdType.Caption.copy(lineHeight = ZdType.BodySmall.lineHeight), color = ZdColors.Text3)
     }
+}
+
+// ── Dialog ───────────────────────────────────────────────────────────────────
+
+/** Styled dialog: mono title, body slot, primary confirm and a quiet dismiss. */
+@Composable
+fun ZdDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    confirmEnabled: Boolean = true,
+    dismissLabel: String = "Cancel",
+    content: @Composable ColumnScope.() -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = ZdColors.Surface,
+        shape = RoundedCornerShape(22.dp),
+        title = { Text(title, style = ZdType.Title, color = ZdColors.Text) },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp), content = content) },
+        confirmButton = { ZdButton(confirmLabel, onClick = onConfirm, enabled = confirmEnabled) },
+        dismissButton = { if (dismissLabel.isNotEmpty()) ZdButton(dismissLabel, onClick = onDismiss, variant = ZdButtonVariant.Ghost) }
+    )
 }

@@ -39,6 +39,7 @@
     <!-- Foreground service (wardriving) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- All hardware features optional -->
@@ -80,6 +81,89 @@
             android:foregroundServiceType="location"
             android:exported="false" />
 
+        <!-- Watch rules: short spaced-out scans while the user is away from the app. -->
+        <service
+            android:name=".features.watch.service.WatchService"
+            android:foregroundServiceType="location|connectedDevice"
+            android:exported="false" />
+
+        <receiver
+            android:name=".core.notify.NotificationActionReceiver"
+            android:exported="false" />
+
+        <!-- Quick Settings tiles -->
+        <service
+            android:name=".features.surfaces.SweepTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_sweep"
+            android:label="@string/tile_sweep"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".features.surfaces.TrackerCheckTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_tracker"
+            android:label="@string/tile_tracker"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".features.surfaces.WatchTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_watch"
+            android:label="@string/tile_watch"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <service
+            android:name=".features.surfaces.NfcTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_nfc"
+            android:label="@string/tile_nfc"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Home-screen widgets -->
+        <receiver
+            android:name=".features.surfaces.StatusWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_status_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_status" />
+        </receiver>
+
+        <receiver
+            android:name=".features.surfaces.TrackerWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_tracker_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_tracker" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -113,6 +197,10 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Long-pressing one of our Quick Settings tiles opens its screen. -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
             </intent-filter>
         </activity>
     </application>

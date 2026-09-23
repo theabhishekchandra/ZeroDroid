@@ -28,4 +28,17 @@ object BleDistanceEstimator {
         distanceM < 10.0 -> "○"
         else -> "◌"
     }
+
+    /**
+     * Honest range for a row subtitle, e.g. "~1 m" or "~2–4 m". Indoors the estimate can be
+     * off by about 2×, so anything past a metre is shown as a span rather than one number.
+     */
+    fun rangeLabel(rssi: Int, txPower: Int = DEFAULT_TX_POWER): String {
+        val d = estimateDistance(rssi, txPower)
+        if (d < 0) return "range unknown"
+        if (d < 1.5) return "~1 m"
+        val low = kotlin.math.max(1, kotlin.math.floor(d / 1.5).toInt())
+        val high = kotlin.math.max(low + 1, kotlin.math.ceil(d * 1.5).toInt())
+        return if (high > 30) "30 m+" else "~$low–$high m"
+    }
 }

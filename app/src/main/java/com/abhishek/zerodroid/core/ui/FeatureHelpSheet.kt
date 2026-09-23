@@ -109,14 +109,11 @@ fun FeatureHelpSheet(
                             }
                         }
                     }
-                } else if (help.capabilities.isNotEmpty()) {
-                    HelpSection("What it does") {
-                        help.capabilities.forEach { line ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(ZdIcons.Check, contentDescription = null, tint = ZdColors.Accent, modifier = Modifier.size(16.dp).padding(top = 2.dp))
-                                Text(line, style = ZdType.BodySmall.copy(fontSize = ZdType.Body.fontSize.times(0.94f)), color = ZdColors.Text2)
-                            }
-                        }
+                }
+
+                help.howItWorks?.let { text ->
+                    HelpSection("How it works") {
+                        Text(text, style = ZdType.BodySmall.copy(fontSize = ZdType.Body.fontSize.times(0.94f), lineHeight = ZdType.Body.lineHeight), color = ZdColors.Text2)
                     }
                 }
 
@@ -131,10 +128,9 @@ fun FeatureHelpSheet(
                     }
                 }
 
-                val facts = help.facts.ifEmpty { help.tips.map { HelpFact(it, "") } }
-                if (facts.isNotEmpty()) {
+                if (help.facts.isNotEmpty()) {
                     HelpSection("Good to know") {
-                        ZdListCard(facts) { fact ->
+                        ZdListCard(help.facts) { fact ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -145,7 +141,7 @@ fun FeatureHelpSheet(
                                 Icon(ZdIcons.Info, contentDescription = null, tint = ZdColors.Info, modifier = Modifier.size(18.dp))
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(fact.title, style = ZdType.BodySmall.copy(fontSize = ZdType.Body.fontSize.times(0.94f), fontWeight = ZdType.Label.fontWeight), color = ZdColors.Text)
-                                    if (fact.detail.isNotEmpty()) Text(fact.detail, style = ZdType.Caption, color = ZdColors.Text3)
+                                    Text(fact.detail, style = ZdType.Caption, color = ZdColors.Text3)
                                 }
                             }
                         }

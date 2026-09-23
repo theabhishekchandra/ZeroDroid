@@ -2,44 +2,39 @@ package com.abhishek.zerodroid.features.wifi_direct.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.WifiFind
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
-import com.abhishek.zerodroid.core.ui.EmptyState
-import com.abhishek.zerodroid.core.ui.ScanningIndicator
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdListRow
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdStat
+import com.abhishek.zerodroid.core.ui.zd.ZdTag
+import com.abhishek.zerodroid.core.ui.zd.ZdToolScanBar
 import com.abhishek.zerodroid.features.wifi_direct.domain.WifiDirectGroup
 import com.abhishek.zerodroid.features.wifi_direct.domain.WifiDirectPeer
 import com.abhishek.zerodroid.features.wifi_direct.viewmodel.WifiDirectViewModel
-import com.abhishek.zerodroid.ui.theme.TerminalAmber
-import com.abhishek.zerodroid.ui.theme.TerminalCyan
-import com.abhishek.zerodroid.ui.theme.TerminalGreen
-import com.abhishek.zerodroid.ui.theme.TerminalRed
+import com.abhishek.zerodroid.ui.theme.ZdColors
 
 @Composable
 fun WifiDirectScreen(
@@ -47,7 +42,7 @@ fun WifiDirectScreen(
 ) {
     PermissionGate(
         permissions = PermissionUtils.wifiDirectPermissions(),
-        rationale = "Wi-Fi Direct requires nearby device and location permissions to discover and connect to peers."
+        rationale = "Finding Wi-Fi Direct peers counts as discovering nearby devices, which Android gates."
     ) {
         WifiDirectContent(viewModel = viewModel)
     }
@@ -64,316 +59,83 @@ private fun WifiDirectContent(viewModel: WifiDirectViewModel) {
         onResume = viewModel::startDiscovery
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Header row with title and discover/stop button
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "> Wi-Fi Direct",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                if (state.isDiscovering) {
-                    OutlinedButton(
-                        onClick = { viewModel.stopDiscovery() },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("Stop")
-                    }
+    Column(Modifier.fillMaxSize()) {
+        ZdToolScanBar(
+            running = state.isDiscovering,
+            onStart = viewModel::startDiscovery,
+            onStop = viewModel::stopDiscovery,
+            verb = "Discovering",
+            runningNote = "${state.peers.size} peers so far",
+            idleNote = if (state.connectedGroup != null) "Group formed" else "Find phones, printers and TVs nearby"
+        )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (!state.isEnabled) item { ZdFootnote("Wi-Fi Direct is off. Turn WiFi on to discover peers.", icon = ZdIcons.Warning) }
+            state.error?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
+            state.connectedGroup?.let { group ->
+                item { GroupCard(group, onLeave = viewModel::disconnect) }
+                item { ZdSectionLabel("Transfer") }
+                item {
+                    WifiDirectTransferPanel(
+                        isGroupOwner = group.isGroupOwner,
+                        groupOwnerAddress = group.ownerAddress,
+                        transfer = viewModel.fileTransfer
+                    )
+                }
+            }
+            item { ZdSectionLabel("Nearby peers", trailingText = "${state.peers.size}") }
+            item {
+                if (state.peers.isEmpty()) {
+                    ZdFootnote(if (state.isDiscovering) "Looking for peers… the other device must also be discovering." else "Tap Start to look for peers.")
                 } else {
-                    Button(
-                        onClick = { viewModel.startDiscovery() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("Discover")
-                    }
+                    ZdListCard(state.peers) { PeerRow(it, onConnect = { viewModel.connect(it.deviceAddress) }) }
                 }
             }
-        }
-
-        // Status card
-        item {
-            WifiDirectStatusCard(
-                isEnabled = state.isEnabled,
-                peerCount = state.peers.size,
-                isDiscovering = state.isDiscovering
-            )
-        }
-
-        // Error message
-        state.error?.let { error ->
-            item {
-                Text(
-                    text = error,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            }
-        }
-
-        // Scanning indicator
-        item {
-            ScanningIndicator(
-                isScanning = state.isDiscovering,
-                label = "Discovering peers..."
-            )
-        }
-
-        // Connected group details
-        state.connectedGroup?.let { group ->
-            item {
-                ConnectedGroupCard(
-                    group = group,
-                    onDisconnect = { viewModel.disconnect() }
-                )
-            }
-        }
-
-        // Peer list
-        if (state.peers.isEmpty() && !state.isDiscovering) {
-            item {
-                EmptyState(
-                    icon = Icons.Default.WifiFind,
-                    title = "No peers found",
-                    subtitle = "Tap Discover to search for nearby Wi-Fi Direct devices"
-                )
-            }
-        }
-
-        items(state.peers, key = { it.deviceAddress }) { peer ->
-            PeerItem(
-                peer = peer,
-                onConnect = { viewModel.connect(peer.deviceAddress) }
-            )
-        }
-
-        item { Spacer(modifier = Modifier.height(16.dp)) }
-    }
-}
-
-@Composable
-private fun WifiDirectStatusCard(
-    isEnabled: Boolean,
-    peerCount: Int,
-    isDiscovering: Boolean
-) {
-    TerminalCard {
-        Text(
-            text = "> Status",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Wi-Fi Direct",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = if (isEnabled) "Enabled" else "Disabled",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isEnabled) TerminalGreen else TerminalRed
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Peers Discovered",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "$peerCount",
-                style = MaterialTheme.typography.bodySmall,
-                color = TerminalCyan
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Discovery",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = if (isDiscovering) "Active" else "Idle",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isDiscovering) TerminalAmber else MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            item { ZdFootnote("One device becomes the group owner and acts like a small access point; the others join as clients.") }
         }
     }
 }
 
 @Composable
-private fun ConnectedGroupCard(
-    group: WifiDirectGroup,
-    onDisconnect: () -> Unit
-) {
-    TerminalCard(animated = true) {
-        Text(
-            text = "> Connected Group",
-            style = MaterialTheme.typography.titleMedium,
-            color = TerminalGreen
+private fun GroupCard(group: WifiDirectGroup, onLeave: () -> Unit) {
+    var showPass by rememberSaveable { mutableStateOf(false) }
+    ZdCard(borderColor = ZdColors.AccentBorder) {
+        ZdTag(
+            if (group.isGroupOwner) "YOU ARE GROUP OWNER" else "JOINED AS CLIENT",
+            color = ZdColors.Accent,
+            background = ZdColors.AccentBg,
+            border = ZdColors.AccentBorder
         )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LabelValue(label = "Network", value = group.networkName)
-        Spacer(modifier = Modifier.height(4.dp))
-
-        group.passphrase?.let { passphrase ->
-            LabelValue(label = "Passphrase", value = passphrase)
-            Spacer(modifier = Modifier.height(4.dp))
+        Row {
+            ZdStat("Network", group.networkName, Modifier.weight(1f))
+            ZdStat("Owner IP", group.ownerAddress ?: "—", Modifier.weight(1f))
         }
-
-        LabelValue(
-            label = "Role",
-            value = if (group.isGroupOwner) "Group Owner" else "Client",
-            valueColor = if (group.isGroupOwner) TerminalAmber else TerminalCyan
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-
-        group.ownerAddress?.let { address ->
-            LabelValue(label = "Owner", value = address)
-            Spacer(modifier = Modifier.height(4.dp))
+        Row {
+            ZdStat("Passphrase", group.passphrase?.let { if (showPass) it else "••••••••" } ?: "—", Modifier.weight(1f))
+            ZdStat("Clients", "${group.clients.size}", Modifier.weight(1f))
         }
-
-        if (group.clients.isNotEmpty()) {
-            Text(
-                text = "Clients (${group.clients.size}):",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            group.clients.forEach { client ->
-                Text(
-                    text = "  - $client",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = TerminalCyan
-                )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (group.passphrase != null) {
+                ZdButton(if (showPass) "Hide passphrase" else "Show passphrase", onClick = { showPass = !showPass }, variant = ZdButtonVariant.Secondary, modifier = Modifier.weight(1f), height = 40.dp)
             }
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = onDisconnect,
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.error
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Disconnect")
+            ZdButton("Leave group", onClick = onLeave, variant = ZdButtonVariant.Danger, modifier = Modifier.weight(1f), height = 40.dp)
         }
     }
 }
 
 @Composable
-private fun PeerItem(
-    peer: WifiDirectPeer,
-    onConnect: () -> Unit
-) {
-    TerminalCard {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = peer.deviceName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = peer.deviceAddress,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = peer.statusLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = when (peer.status) {
-                            0 -> TerminalGreen
-                            1 -> TerminalAmber
-                            2 -> TerminalRed
-                            3 -> TerminalCyan
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
-                    if (peer.isGroupOwner) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "[GO]",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TerminalAmber
-                        )
-                    }
-                }
-            }
-
-            if (peer.status != 0) {
-                Button(
-                    onClick = onConnect,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text("Connect")
-                }
-            }
+private fun PeerRow(peer: WifiDirectPeer, onConnect: () -> Unit) {
+    val connected = peer.status == 0
+    ZdListRow(
+        title = peer.deviceName.ifBlank { peer.deviceAddress },
+        subtitle = "${peer.statusLabel} · ${peer.deviceAddress}",
+        leading = { ZdIconTile(ZdIcons.Peers) },
+        trailing = {
+            if (connected) ZdTag("IN GROUP", color = ZdColors.Accent, background = ZdColors.AccentBg, border = ZdColors.AccentBorder)
+            else ZdButton("Connect", onClick = onConnect, variant = ZdButtonVariant.Secondary, height = 36.dp)
         }
-    }
-}
-
-@Composable
-private fun LabelValue(
-    label: String,
-    value: String,
-    valueColor: androidx.compose.ui.graphics.Color = TerminalGreen
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            color = valueColor
-        )
-    }
+    )
 }

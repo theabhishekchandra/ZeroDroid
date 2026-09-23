@@ -1,14 +1,11 @@
 package com.abhishek.zerodroid.features.wifiaware.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,8 +15,18 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
-import com.abhishek.zerodroid.core.ui.StatusIndicator
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdChip
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdListRow
+import com.abhishek.zerodroid.core.ui.zd.ZdScanControlBar
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
+import com.abhishek.zerodroid.core.ui.zd.ZdTextField
+import com.abhishek.zerodroid.core.util.formatAgo
 import com.abhishek.zerodroid.features.wifiaware.viewmodel.WifiAwareViewModel
 
 @Composable
@@ -28,7 +35,7 @@ fun WifiAwareScreen(
 ) {
     PermissionGate(
         permissions = PermissionUtils.wifiAwarePermissions(),
-        rationale = "Nearby devices / location permission is needed to discover Wi-Fi Aware peers."
+        rationale = "Finding Wi-Fi Aware peers counts as discovering nearby devices, which Android gates."
     ) {
         WifiAwareContent(viewModel = viewModel)
     }
@@ -44,62 +51,71 @@ private fun WifiAwareContent(viewModel: WifiAwareViewModel) {
         onResume = viewModel::resumeSession
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            StatusIndicator(isAvailable = state.isAvailable)
-        }
+    if (!state.isAvailable) {
+        ZdStatePanel(
+            kicker = "Not on this phone",
+            icon = ZdIcons.Wifi,
+            title = "Your phone doesn’t support Wi-Fi Aware",
+            body = "Wi-Fi Aware (NAN) lets phones find each other with no router. It needs chipset support that many phones leave out.",
+            note = "Wi-Fi Direct does a similar job and works on most phones."
+        )
+        return
+    }
 
-        if (!state.isAvailable) {
+    Column(Modifier.fillMaxSize()) {
+        ZdScanControlBar(
+            running = state.isSessionAttached,
+            onStart = viewModel::attachSession,
+            onStop = viewModel::detachSession,
+            runningLabel = when {
+                state.isPublishing && state.isSubscribing -> "Publishing + subscribed"
+                state.isPublishing -> "Publishing"
+                state.isSubscribing -> "Subscribed"
+                else -> "Cluster joined"
+            },
+            runningDetail = "Service “${state.serviceName}” · ${state.discoveredPeers.size} peers",
+            idleLabel = "Not attached",
+            idleDetail = "Join a NAN cluster to start",
+            startLabel = "Attach"
+        )
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             item {
-                TerminalCard {
-                    Text(
-                        text = "> Wi-Fi Aware (NAN) not available",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                ZdCard {
+                    ZdTextField(
+                        value = state.serviceName,
+                        onValueChange = viewModel::setServiceName,
+                        label = "SERVICE NAME",
+                        placeholder = "zerodroid",
+                        enabled = !state.isPublishing && !state.isSubscribing
                     )
-                    Text(
-                        text = "This device does not support Wi-Fi Aware / Neighbor Awareness Networking",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    ZdFootnote("Both phones must use the same name.", icon = null)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ZdChip("Publish", selected = state.isPublishing, onClick = viewModel::togglePublish)
+                        ZdChip("Subscribe", selected = state.isSubscribing, onClick = viewModel::toggleSubscribe)
+                    }
                 }
             }
-        }
-
-        item {
-            WifiAwareControlPanel(
-                state = state,
-                onServiceNameChange = viewModel::setServiceName,
-                onAttach = viewModel::attachSession,
-                onDetach = viewModel::detachSession,
-                onTogglePublish = viewModel::togglePublish,
-                onToggleSubscribe = viewModel::toggleSubscribe
-            )
-        }
-
-        state.error?.let { error ->
+            state.error?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
+            item { ZdSectionLabel("Peers", trailingText = "${state.discoveredPeers.size}") }
             item {
-                Text(text = error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                if (state.discoveredPeers.isEmpty()) {
+                    ZdFootnote(if (state.isSubscribing) "Listening for peers publishing “${state.serviceName}”…" else "Subscribe to find peers, or Publish so others can find you.")
+                } else {
+                    ZdListCard(state.discoveredPeers) { peer ->
+                        ZdListRow(
+                            title = peer.serviceName,
+                            subtitle = listOfNotNull("Peer ${peer.serviceId}", peer.matchFilter, formatAgo(peer.discoveredAt)).joinToString(" · "),
+                            leading = { ZdIconTile(ZdIcons.Peers) }
+                        )
+                    }
+                }
             }
+            item { ZdFootnote("Works with no router or internet, typically within about 30 m. Messages are limited to 255 bytes.") }
         }
-
-        if (state.discoveredPeers.isNotEmpty()) {
-            item {
-                Text(
-                    text = "> Discovered Peers (${state.discoveredPeers.size})",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            items(state.discoveredPeers) { peer -> WifiAwarePeerItem(peer = peer) }
-        }
-
-        item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }

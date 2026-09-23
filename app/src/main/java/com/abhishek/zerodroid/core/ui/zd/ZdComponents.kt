@@ -26,6 +26,9 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.Text
@@ -34,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -130,6 +134,7 @@ fun ZdListRow(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     titleMono: Boolean = true,
+    supporting: (@Composable () -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     showChevron: Boolean = false,
@@ -156,6 +161,7 @@ fun ZdListRow(
             if (subtitle != null) {
                 Text(text = subtitle, style = ZdType.Caption, color = ZdColors.Text3)
             }
+            supporting?.invoke()
         }
         if (trailing != null) {
             Row(
@@ -419,13 +425,14 @@ fun ZdChip(
 @Composable
 fun ZdChipRow(
     modifier: Modifier = Modifier,
+    contentPadding: Dp = 16.dp,
     content: @Composable RowScope.() -> Unit
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = contentPadding),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         content = content
     )
@@ -660,6 +667,137 @@ fun ZdSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
                     .clickable(role = Role.Button) { data.performAction() }
                     .padding(horizontal = 6.dp, vertical = 4.dp)
             )
+        }
+    }
+}
+
+// ── Charts ───────────────────────────────────────────────────────────────────
+
+data class ZdBar(val label: String, val value: Float, val color: Color)
+
+/** Labelled vertical bars (channel congestion, events per minute). Heights scale to the max. */
+@Composable
+fun ZdBarChart(
+    bars: List<ZdBar>,
+    modifier: Modifier = Modifier,
+    height: Dp = 72.dp,
+    contentDescription: String? = null
+) {
+    val max = bars.maxOfOrNull { it.value }?.takeIf { it > 0f } ?: 1f
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(height)
+            .then(if (contentDescription != null) Modifier.clearAndSetSemantics { this.contentDescription = contentDescription } else Modifier),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        bars.forEach { bar ->
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom)
+            ) {
+                val fraction = (bar.value / max).coerceIn(0f, 1f)
+                Box(
+                    Modifier
+                        .width(16.dp)
+                        .height(((height.value - 16f) * fraction).coerceAtLeast(4f).dp)
+                        .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                        .background(bar.color.copy(alpha = 0.85f))
+                )
+                Text(bar.label, style = ZdType.Path.copy(fontSize = ZdType.Path.fontSize.times(0.82f)), color = ZdColors.Text3, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** Horizontal proportion bar with a label and count, e.g. WPA2 ███░░ 7. */
+@Composable
+fun ZdProportionRow(label: String, count: Int, total: Int, color: Color, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(label, style = ZdType.Mono, color = ZdColors.Text2, modifier = Modifier.width(52.dp))
+        Box(
+            Modifier
+                .weight(1f)
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(ZdColors.Surface3)
+        ) {
+            val fraction = if (total > 0) count.toFloat() / total else 0f
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(color)
+            )
+        }
+        Text(count.toString(), style = ZdType.Label, color = ZdColors.Text, modifier = Modifier.width(28.dp))
+    }
+}
+
+/** Colour for a congestion count: free, busy, crowded. */
+fun congestionColor(networks: Int): Color = when {
+    networks >= 3 -> ZdColors.Critical
+    networks == 2 -> ZdColors.Medium
+    else -> ZdColors.Accent
+}
+
+// ── Inputs ───────────────────────────────────────────────────────────────────
+
+/** Single-line mono input on a dark well, 48 dp tall, with a placeholder and accessible label. */
+@Composable
+fun ZdTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String = "",
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    enabled: Boolean = true,
+    /** More than one line grows the field for free text such as a QR message. */
+    minLines: Int = 1,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = ZdType.Path.copy(letterSpacing = ZdType.Section.letterSpacing.times(0.7f)), color = ZdColors.Text3)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clip(shape)
+                .background(ZdColors.Bg)
+                .border(1.dp, ZdColors.BorderStrong, shape)
+                .padding(horizontal = 12.dp, vertical = if (minLines > 1) 12.dp else 0.dp),
+            verticalAlignment = if (minLines > 1) Alignment.Top else Alignment.CenterVertically
+        ) {
+            Box(Modifier.weight(1f)) {
+                if (value.isEmpty() && placeholder.isNotEmpty()) {
+                    Text(placeholder, style = ZdType.Mono.copy(fontSize = ZdType.Button.fontSize), color = ZdColors.Text3)
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = minLines <= 1,
+                    minLines = minLines,
+                    textStyle = ZdType.Mono.copy(fontSize = ZdType.Button.fontSize, color = ZdColors.Text),
+                    cursorBrush = SolidColor(ZdColors.Accent),
+                    keyboardOptions = keyboardOptions,
+                    keyboardActions = keyboardActions,
+                    enabled = enabled,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = label }
+                )
+            }
+            trailing?.invoke()
         }
     }
 }
