@@ -81,7 +81,8 @@ class AlertCenterRepositoryTest {
     @Test
     fun `alert sources carry user facing labels`() {
         assertEquals("Tracker Scanner", AlertSource.BLUETOOTH_TRACKER.label)
-        assertEquals(5, AlertSource.entries.size)
+        assertEquals("Cell network", AlertSource.CELL.label)
+        assertEquals(7, AlertSource.entries.size)
     }
 
     @Test

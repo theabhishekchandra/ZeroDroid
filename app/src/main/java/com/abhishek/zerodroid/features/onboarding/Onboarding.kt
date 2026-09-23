@@ -3,6 +3,8 @@ package com.abhishek.zerodroid.features.onboarding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -82,63 +84,66 @@ class OnboardingViewModel @Inject constructor(
 @Composable
 fun OnboardingScreen(viewModel: OnboardingViewModel = hiltViewModel()) {
     var picked by rememberSaveable { mutableStateOf(setOf<Goal>()) }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(ZdColors.Bg)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp)
-    ) {
+    // Full-bleed background; the content keeps a readable width on tablets.
+    Box(Modifier.fillMaxSize().background(ZdColors.Bg), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(top = 32.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .widthIn(max = 640.dp)
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp)
         ) {
-            Text("zd:~/welcome", style = ZdType.Path, color = ZdColors.Accent)
-            Text("What brings you here?", style = ZdType.Title, color = ZdColors.Text)
-            Text(
-                "Pick any that apply. We’ll pin the right tools to Home; you can change them any time.",
-                style = ZdType.BodySmall,
-                color = ZdColors.Text2
-            )
-            Goal.entries.forEach { goal ->
-                val on = goal in picked
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(ZdCardShape)
-                        .background(if (on) ZdColors.AccentBg else ZdColors.Surface)
-                        .border(1.dp, if (on) ZdColors.Accent else ZdColors.Border, ZdCardShape)
-                        .toggleable(value = on, role = Role.Checkbox, onValueChange = { picked = if (on) picked - goal else picked + goal })
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ZdIconTile(goal.icon, tint = if (on) ZdColors.Accent else ZdColors.Text2, background = if (on) ZdColors.Surface else ZdColors.Surface2)
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(goal.title, style = ZdType.Label, color = ZdColors.Text)
-                        Text(goal.detail, style = ZdType.Caption, color = ZdColors.Text3)
-                        Text(
-                            goal.tools.mapNotNull { ToolCatalog.forRoute(it)?.name }.joinToString(" · "),
-                            style = ZdType.Path,
-                            color = ZdColors.Text3
-                        )
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 32.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("zd:~/welcome", style = ZdType.Path, color = ZdColors.Accent)
+                Text("What brings you here?", style = ZdType.Title, color = ZdColors.Text)
+                Text(
+                    "Pick any that apply. We’ll pin the right tools to Home; you can change them any time.",
+                    style = ZdType.BodySmall,
+                    color = ZdColors.Text2
+                )
+                Goal.entries.forEach { goal ->
+                    val on = goal in picked
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(ZdCardShape)
+                            .background(if (on) ZdColors.AccentBg else ZdColors.Surface)
+                            .border(1.dp, if (on) ZdColors.Accent else ZdColors.Border, ZdCardShape)
+                            .toggleable(value = on, role = Role.Checkbox, onValueChange = { picked = if (on) picked - goal else picked + goal })
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        ZdIconTile(goal.icon, tint = if (on) ZdColors.Accent else ZdColors.Text2, background = if (on) ZdColors.Surface else ZdColors.Surface2)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(goal.title, style = ZdType.Label, color = ZdColors.Text)
+                            Text(goal.detail, style = ZdType.Caption, color = ZdColors.Text3)
+                            Text(
+                                goal.tools.mapNotNull { ToolCatalog.forRoute(it)?.name }.joinToString(" · "),
+                                style = ZdType.Path,
+                                color = ZdColors.Text3
+                            )
+                        }
+                        if (on) Icon(ZdIcons.Check, contentDescription = null, tint = ZdColors.Accent)
                     }
-                    if (on) Icon(ZdIcons.Check, contentDescription = null, tint = ZdColors.Accent)
                 }
             }
-        }
-        Column(Modifier.padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            ZdButton(
-                if (picked.isEmpty()) "Pick at least one" else "Continue",
-                onClick = { viewModel.finish(picked) },
-                enabled = picked.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            )
-            ZdButton("Skip for now", onClick = { viewModel.finish(emptySet()) }, variant = ZdButtonVariant.Ghost, modifier = Modifier.fillMaxWidth())
+            Column(Modifier.padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ZdButton(
+                    if (picked.isEmpty()) "Pick at least one" else "Continue",
+                    onClick = { viewModel.finish(picked) },
+                    enabled = picked.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                ZdButton("Skip for now", onClick = { viewModel.finish(emptySet()) }, variant = ZdButtonVariant.Ghost, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }

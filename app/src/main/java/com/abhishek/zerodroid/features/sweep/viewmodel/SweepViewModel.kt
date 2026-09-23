@@ -3,6 +3,7 @@ package com.abhishek.zerodroid.features.sweep.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.abhishek.zerodroid.core.notify.ZdNotifier
 import com.abhishek.zerodroid.core.prefs.AppSettings
 import com.abhishek.zerodroid.core.sessions.ItemKind
 import com.abhishek.zerodroid.core.sessions.SessionItem
@@ -74,7 +75,8 @@ class SweepViewModel @Inject constructor(
     private val sensors: SensorDataCollector,
     cameraDetector: HiddenCameraDetector,
     private val sessions: SessionRepository,
-    private val settings: AppSettings
+    private val settings: AppSettings,
+    private val notifier: ZdNotifier
 ) : ViewModel() {
 
     private val evaluator = SweepEvaluator(cameraDetector)
@@ -283,6 +285,14 @@ class SweepViewModel @Inject constructor(
             keepEmpty = true
         )
         _state.update { it.copy(sessionId = id, previousSessionId = previous) }
+        if (id != null) {
+            notifier.postSweepFinished(
+                sessionId = id,
+                place = place,
+                high = s.findings.count { it.level == FindingLevel.HIGH },
+                medium = s.findings.count { it.level == FindingLevel.MEDIUM }
+            )
+        }
     }
 
     /** Replaces [check]'s findings; called live while radios listen and again at the end. */

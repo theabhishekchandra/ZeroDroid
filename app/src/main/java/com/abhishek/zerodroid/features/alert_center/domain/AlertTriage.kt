@@ -9,10 +9,11 @@ import java.util.Calendar
 /** Filter chips on the Alerts screen, grouping sources by what people look for. */
 enum class AlertFilter(val label: String, val sources: Set<AlertSource>) {
     ALL("All", AlertSource.entries.toSet()),
-    TRACKERS("Trackers", setOf(AlertSource.BLUETOOTH_TRACKER)),
+    TRACKERS("Trackers", setOf(AlertSource.BLUETOOTH_TRACKER, AlertSource.BLE_WATCH)),
     WIFI("WiFi", setOf(AlertSource.ROGUE_AP, AlertSource.DEAUTH)),
     GPS("GPS", setOf(AlertSource.GPS_SPOOF)),
-    CAMERA("Camera", setOf(AlertSource.HIDDEN_CAMERA))
+    CAMERA("Camera", setOf(AlertSource.HIDDEN_CAMERA)),
+    CELL("Cell", setOf(AlertSource.CELL))
 }
 
 enum class DayBucket(val label: String) { TODAY("Today"), YESTERDAY("Yesterday"), EARLIER("Earlier") }
@@ -51,10 +52,10 @@ object AlertTriage {
 
     /** The resolve action that fits each source: trackers can be yours, networks can be safe. */
     fun resolveAction(source: AlertSource): Pair<String, AlertResolution> = when (source) {
-        AlertSource.BLUETOOTH_TRACKER -> "It’s mine" to AlertResolution.MINE
+        AlertSource.BLUETOOTH_TRACKER, AlertSource.BLE_WATCH -> "It’s mine" to AlertResolution.MINE
         AlertSource.DEAUTH -> "Mute" to AlertResolution.MUTED
         AlertSource.HIDDEN_CAMERA -> "Checked" to AlertResolution.CHECKED
-        AlertSource.ROGUE_AP, AlertSource.GPS_SPOOF -> "Mark safe" to AlertResolution.SAFE
+        AlertSource.ROGUE_AP, AlertSource.GPS_SPOOF, AlertSource.CELL -> "Mark safe" to AlertResolution.SAFE
     }
 
     fun filter(alerts: List<UnifiedAlert>, filter: AlertFilter): List<UnifiedAlert> =

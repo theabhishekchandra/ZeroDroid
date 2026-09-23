@@ -69,6 +69,7 @@ class SettingsViewModel @Inject constructor(
 
 @Composable
 fun SettingsScreen(
+    onOpenRules: () -> Unit,
     onDataDeleted: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -77,6 +78,8 @@ fun SettingsScreen(
     val retention by s.retentionDays.collectAsState()
     val keepOn by s.keepScreenOnDuringSweeps.collectAsState()
     val trusted by s.trustedNetworks.collectAsState()
+    val hideOnLock by s.hideOnLockScreen.collectAsState()
+    val mine by s.myDevices.collectAsState()
     var newSsid by rememberSaveable { mutableStateOf("") }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var showAgreement by rememberSaveable { mutableStateOf(false) }
@@ -105,6 +108,35 @@ fun SettingsScreen(
                 }
             }
             Text("Older sessions are deleted automatically. Everything stays on this phone.", style = ZdType.Caption, color = ZdColors.Text3)
+        }
+
+        ZdCard(verticalSpacing = 0.dp) {
+            ZdSwitchRow(
+                label = "Hide alert details on the lock screen",
+                description = "Shows “Possible tracker nearby” until you unlock",
+                checked = hideOnLock,
+                onCheckedChange = s::setHideOnLockScreen
+            )
+        }
+
+        ZdSectionLabel("Background")
+        ZdListCard(listOf(0)) {
+            ZdListRow(
+                title = "Watch rules",
+                titleMono = false,
+                subtitle = "Follow-me trackers, rogue APs, deauth and 2G downgrades",
+                showChevron = true,
+                onClick = onOpenRules
+            )
+        }
+        if (mine.isNotEmpty()) {
+            ZdSectionLabel("Marked as mine", trailingText = "${mine.size}")
+            ZdListCard(mine.sorted()) { address ->
+                ZdListRow(
+                    title = address,
+                    trailing = { ZdIconButton(ZdIcons.Close, contentDescription = "Forget $address", onClick = { s.forgetMine(address) }) }
+                )
+            }
         }
 
         ZdSectionLabel("Room sweep")

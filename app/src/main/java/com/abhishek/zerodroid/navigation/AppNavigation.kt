@@ -11,6 +11,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
+import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +75,7 @@ import com.abhishek.zerodroid.features.onboarding.OnboardingScreen
 import com.abhishek.zerodroid.features.rf_bug_sweeper.ui.RfBugSweeperScreen
 import com.abhishek.zerodroid.features.search.SearchScreen
 import com.abhishek.zerodroid.features.settings.SettingsScreen
+import com.abhishek.zerodroid.features.watch.ui.RulesScreen
 import com.abhishek.zerodroid.features.sweep.domain.SweepPreset
 import com.abhishek.zerodroid.features.sweep.ui.SweepPresetsScreen
 import com.abhishek.zerodroid.features.sweep.ui.SweepRunScreen
@@ -156,13 +166,28 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
 
     val agreed = rememberEthicalAgreement()
     val onboarded by shell.onboardingDone.collectAsState()
+    val pendingRoute by shell.deepLinks.pending.collectAsState()
+
+    // Notifications, tiles and widgets open screens by route.
+    LaunchedEffect(pendingRoute) {
+        val route = pendingRoute ?: return@LaunchedEffect
+        shell.deepLinks.consume()
+        runCatching { navController.navigate(route) { launchSingleTop = true } }
+    }
+
+    // Tablets and unfolded phones: a rail instead of the bottom bar, and Tools as list + detail.
+    val wide = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } >= WIDE_DP.dp
+    val baseRoute = currentRoute?.substringBefore('?')
+    val onTool = baseRoute != null && ToolCatalog.forRoute(baseRoute) != null
+    val showListPane = wide && (baseRoute == ZeroDroidScreen.Tools.route || onTool)
+    val railRoute = if (onTool) ZeroDroidScreen.Tools.route else baseRoute
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = ZdColors.Bg,
             snackbarHost = { SnackbarHost(snackbarHostState) { ZdSnackbar(it) } },
             bottomBar = {
-                if (currentRoute in tabRoutes) {
+                if (!wide && currentRoute in tabRoutes) {
                     ZdBottomBar(
                         tabs = bottomTabs,
                         currentRoute = currentRoute,
@@ -172,10 +197,43 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
                 }
             }
         ) { paddingValues ->
+            Row(Modifier.padding(paddingValues)) {
+            if (wide) {
+                ZdNavRail(
+                    tabs = bottomTabs,
+                    selectedRoute = railRoute,
+                    alertCount = alertCount,
+                    onSelect = { navController.navigateTopLevel(it) }
+                )
+            }
+            if (showListPane) {
+                Box(Modifier.width(LIST_PANE_DP.dp).fillMaxHeight()) {
+                    ToolsScreen(
+                        selectedRoute = baseRoute,
+                        onOpenTool = { tool ->
+                            // Swap the open tool instead of stacking one per tap.
+                            val current = navController.currentBackStackEntry?.destination
+                            navController.navigate(tool.route) {
+                                if (onTool && current != null) popUpTo(current.id) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        },
+                        onSearch = { navController.navigate(ZeroDroidScreen.Search.route) },
+                        onSettings = { navController.navigate(ZeroDroidScreen.Settings.route) },
+                        onPinChanged = { tool, pinned ->
+                            scope.launch {
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                snackbarHostState.showSnackbar(if (pinned) "${tool.name} pinned to Home" else "${tool.name} removed from Home")
+                            }
+                        }
+                    )
+                }
+                Box(Modifier.fillMaxHeight().width(1.dp).background(ZdColors.Border))
+            }
             NavHost(
                 navController = navController,
                 startDestination = ZeroDroidScreen.Dashboard.route,
-                modifier = Modifier.padding(paddingValues),
+                modifier = Modifier.weight(1f),
                 enterTransition = { enterTransition },
                 exitTransition = { exitTransition },
                 popEnterTransition = { popEnterTransition },
@@ -189,6 +247,17 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
                     )
                 }
                 composable(ZeroDroidScreen.Tools.route) {
+                    if (wide) {
+                        ZdStatePanel(
+                            kicker = "Tools",
+                            icon = ZdIcons.Grid,
+                            iconTint = ZdColors.Accent,
+                            iconBackground = ZdColors.AccentBg,
+                            title = "Pick a tool",
+                            body = "Choose one from the list; it opens here and the list stays put so you can switch quickly."
+                        )
+                        return@composable
+                    }
                     ToolsScreen(
                         onOpenTool = { navController.navigate(it.route) { launchSingleTop = true } },
                         onSearch = { navController.navigate(ZeroDroidScreen.Search.route) },
@@ -249,12 +318,23 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
                     )
                 }
                 pushed(ZeroDroidScreen.Settings.route, "/settings", "Settings", navController, emptyList()) {
-                    SettingsScreen(onDataDeleted = {
+                    SettingsScreen(onOpenRules = { navController.navigate(RULES_ROUTE) }, onDataDeleted = {
                         scope.launch { snackbarHostState.showSnackbar("All saved data deleted") }
                     })
                 }
 
-                tool(ZeroDroidScreen.Sensors, navController) { SensorScreen() }
+                composable(RULES_ROUTE) {
+                Column(Modifier.fillMaxSize()) {
+                    ZdHeader(path = "/rules", title = "Watch rules", onBack = { if (!navController.popBackStack()) navController.navigateTopLevel(ZeroDroidScreen.Dashboard.route) })
+                    Box(Modifier.weight(1f)) {
+                        RulesScreen(
+                            onOpenSettings = { navController.navigate(ZeroDroidScreen.Settings.route) }
+                        )
+                    }
+                }
+            }
+
+            tool(ZeroDroidScreen.Sensors, navController) { SensorScreen() }
                 tool(ZeroDroidScreen.Wifi, navController) { WifiScreen() }
                 tool(ZeroDroidScreen.Ble, navController) {
                     BleScreen(onOpenDevice = { address, name, kind ->
@@ -337,6 +417,7 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
                     }
                 }
             }
+            }
         }
         if (agreed && !onboarded) {
             // Covers the app until goals are picked; back does nothing so it can't be bypassed by accident.
@@ -349,6 +430,12 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
 /** Route to a device's cross-session history; every argument is URL-encoded. */
 internal fun deviceRoute(key: String, label: String, kind: String): String =
     "device/${Uri.encode(key)}/${Uri.encode(label.ifBlank { " " })}/$kind"
+
+internal const val RULES_ROUTE = "rules"
+
+/** Width where the layout switches to rail + panes (Material's "expanded" class). */
+private const val WIDE_DP = 840
+private const val LIST_PANE_DP = 380
 
 internal fun locateRoute(address: String, label: String): String =
     "locate/${Uri.encode(address)}/${Uri.encode(label.ifBlank { " " })}"
