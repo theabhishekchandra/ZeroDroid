@@ -50,5 +50,7 @@ class ZdFormattingTest {
         assertEquals("6 min", com.abhishek.zerodroid.core.util.formatSpan(6 * 60_000L))
         assertEquals("1 h 12 min", com.abhishek.zerodroid.core.util.formatSpan(72 * 60_000L))
         assertEquals("2 h", com.abhishek.zerodroid.core.util.formatSpan(2 * 3_600_000L))
+        assertEquals("25 h", com.abhishek.zerodroid.core.util.formatSpan(25 * 3_600_000L).substringBefore(" 0"))
+        assertEquals("3 days", com.abhishek.zerodroid.core.util.formatSpan(71 * 3_600_000L + 40 * 60_000L + 86_400_000L))
     }
 }

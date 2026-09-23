@@ -26,6 +26,7 @@ import com.abhishek.zerodroid.core.ui.zd.ZdButton
 import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
 import com.abhishek.zerodroid.core.ui.zd.ZdCard
 import com.abhishek.zerodroid.core.ui.zd.ZdHeader
+import com.abhishek.zerodroid.core.ui.zd.ZdIconButton
 import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
 import com.abhishek.zerodroid.core.ui.zd.ZdIcons
 import com.abhishek.zerodroid.core.ui.zd.ZdScreenColumn
@@ -45,6 +46,8 @@ import com.abhishek.zerodroid.ui.theme.ZdType
 @Composable
 fun DashboardScreen(
     onNavigate: (String) -> Unit,
+    onSearch: () -> Unit = {},
+    onSettings: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val summary by viewModel.alertSummary.collectAsState()
@@ -60,12 +63,15 @@ fun DashboardScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        ZdHeader(path = "/zerodroid · ${viewModel.deviceInfo.model}", title = "Home")
+        ZdHeader(path = "/zerodroid · ${viewModel.deviceInfo.model}", title = "Home") {
+            ZdIconButton(ZdIcons.Search, contentDescription = "Search everything", onClick = onSearch)
+            ZdIconButton(ZdIcons.Settings, contentDescription = "Settings", onClick = onSettings)
+        }
 
         ZdScreenColumn(spacing = 20.dp) {
             ThreatStatusCard(
                 summary = summary,
-                onRunSweep = { onNavigate(ZeroDroidScreen.RfBugSweeper.route) },
+                onRunSweep = { onNavigate(ZeroDroidScreen.Sweep.route) },
                 onReview = { onNavigate(ZeroDroidScreen.AlertCenter.route) }
             )
 
@@ -150,8 +156,8 @@ private fun ThreatStatusCard(
     }
     val title = when (summary.total) {
         0 -> "All clear"
-        1 -> "1 alert"
-        else -> "${summary.total} alerts"
+        1 -> "1 open alert"
+        else -> "${summary.total} open alerts"
     }
     val detail = if (summary.total == 0) {
         "Nothing flagged yet. Run a sweep to check the room you’re in."

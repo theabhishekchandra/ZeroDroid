@@ -11,10 +11,11 @@ fun formatAgo(timestamp: Long, now: Long = System.currentTimeMillis()): String {
     }
 }
 
-/** Compact span: "40 s", "6 min", "1 h 12 min". */
+/** Compact span: "40 s", "6 min", "1 h 12 min", "3 days". */
 fun formatSpan(millis: Long): String {
     val seconds = millis.coerceAtLeast(0L) / 1000
     return when {
+        seconds >= 2 * 86_400 -> "${seconds / 86_400} days"
         seconds < 60 -> "$seconds s"
         seconds < 3_600 -> "${seconds / 60} min"
         else -> {

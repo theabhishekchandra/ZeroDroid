@@ -761,6 +761,8 @@ fun ZdTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     enabled: Boolean = true,
+    /** More than one line grows the field for free text such as a QR message. */
+    minLines: Int = 1,
     trailing: (@Composable () -> Unit)? = null
 ) {
     val shape = RoundedCornerShape(10.dp)
@@ -773,8 +775,8 @@ fun ZdTextField(
                 .clip(shape)
                 .background(ZdColors.Bg)
                 .border(1.dp, ZdColors.BorderStrong, shape)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 12.dp, vertical = if (minLines > 1) 12.dp else 0.dp),
+            verticalAlignment = if (minLines > 1) Alignment.Top else Alignment.CenterVertically
         ) {
             Box(Modifier.weight(1f)) {
                 if (value.isEmpty() && placeholder.isNotEmpty()) {
@@ -783,7 +785,8 @@ fun ZdTextField(
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    singleLine = true,
+                    singleLine = minLines <= 1,
+                    minLines = minLines,
                     textStyle = ZdType.Mono.copy(fontSize = ZdType.Button.fontSize, color = ZdColors.Text),
                     cursorBrush = SolidColor(ZdColors.Accent),
                     keyboardOptions = keyboardOptions,

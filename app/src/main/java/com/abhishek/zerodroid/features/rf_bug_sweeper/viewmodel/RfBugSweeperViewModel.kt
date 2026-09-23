@@ -10,6 +10,10 @@ import com.abhishek.zerodroid.features.rf_bug_sweeper.domain.SweepMode
 import com.abhishek.zerodroid.features.sensors.domain.MetalDetector
 import com.abhishek.zerodroid.features.sensors.domain.SensorDataCollector
 import com.abhishek.zerodroid.features.ultrasonic.domain.UltrasonicAnalyzer
+import com.abhishek.zerodroid.core.sessions.ItemKind
+import com.abhishek.zerodroid.core.sessions.SessionItem
+import com.abhishek.zerodroid.core.sessions.SessionRepository
+import com.abhishek.zerodroid.features.rf_bug_sweeper.domain.ThreatSeverity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -28,8 +32,13 @@ class RfBugSweeperViewModel @Inject constructor(
     private val bleScanner: BleScanner,
     private val ultrasonicAnalyzer: UltrasonicAnalyzer,
     private val sensorDataCollector: SensorDataCollector,
+    private val sessions: SessionRepository,
     private val demoBus: DemoDataBus
 ) : ViewModel() {
+
+    /** When the current run started; null when no run is in progress. */
+    private var runStartedAt: Long? = null
+
 
     private val _state = MutableStateFlow(BugSweepState())
     val state: StateFlow<BugSweepState> = _state.asStateFlow()
@@ -58,6 +67,7 @@ class RfBugSweeperViewModel @Inject constructor(
         }
 
         sweepStartMs = System.currentTimeMillis()
+        runStartedAt = System.currentTimeMillis()
 
         _state.value = _state.value.copy(
             isSweeping = true,
@@ -72,6 +82,10 @@ class RfBugSweeperViewModel @Inject constructor(
     }
 
     fun stopSweep() {
+        runStartedAt?.let { started ->
+            runStartedAt = null
+            recordSession(started)
+        }
         bleJob?.cancel()
         ultrasonicJob?.cancel()
         magneticJob?.cancel()
@@ -224,6 +238,26 @@ class RfBugSweeperViewModel @Inject constructor(
     }
 
     // ── Lifecycle ──────────────────────────────────────────────────────
+
+    private fun recordSession(startedAt: Long) {
+        val state = _state.value
+        sessions.recordInBackground(
+            tool = "rf_bug_sweeper",
+            title = "RF bug sweep",
+            startedAt = startedAt,
+            items = state.detections.map { d ->
+                SessionItem(
+                    key = "${d.type}:${d.title}",
+                    label = d.title,
+                    kind = ItemKind.RF,
+                    rssi = d.rssi,
+                    detail = d.detail,
+                    flagged = d.severity != ThreatSeverity.LOW
+                )
+            },
+            summary = "${state.bleDeviceCount} radios checked · ${state.detections.size} finding${if (state.detections.size == 1) "" else "s"}"
+        )
+    }
 
     override fun onCleared() {
         stopSweep()
