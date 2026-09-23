@@ -150,8 +150,8 @@ private fun ThreatStatusCard(
     }
     val title = when (summary.total) {
         0 -> "All clear"
-        1 -> "1 alert"
-        else -> "${summary.total} alerts"
+        1 -> "1 open alert"
+        else -> "${summary.total} open alerts"
     }
     val detail = if (summary.total == 0) {
         "Nothing flagged yet. Run a sweep to check the room you’re in."

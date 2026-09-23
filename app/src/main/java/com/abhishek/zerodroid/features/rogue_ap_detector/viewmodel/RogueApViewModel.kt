@@ -10,6 +10,9 @@ import com.abhishek.zerodroid.features.rogue_ap_detector.domain.RogueApAlert
 import com.abhishek.zerodroid.features.rogue_ap_detector.domain.RogueApAnalyzer
 import com.abhishek.zerodroid.features.rogue_ap_detector.domain.RogueApState
 import com.abhishek.zerodroid.features.wifi.domain.WifiScanner
+import com.abhishek.zerodroid.core.sessions.ItemKind
+import com.abhishek.zerodroid.core.sessions.SessionItem
+import com.abhishek.zerodroid.core.sessions.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,8 +29,13 @@ import com.abhishek.zerodroid.core.debug.observeDemoRequests
 class RogueApViewModel @Inject constructor(
     private val wifiScanner: WifiScanner,
     private val alertCenterRepository: AlertCenterRepository,
+    private val sessions: SessionRepository,
     private val demoBus: DemoDataBus
 ) : ViewModel() {
+
+    /** When the current run started; null when no run is in progress. */
+    private var runStartedAt: Long? = null
+
 
     private val analyzer = RogueApAnalyzer()
 
@@ -43,6 +51,7 @@ class RogueApViewModel @Inject constructor(
     fun startScan() {
         if (scanJob?.isActive == true) return
         _state.value = _state.value.copy(isScanning = true, error = null)
+        runStartedAt = System.currentTimeMillis()
 
         scanJob = viewModelScope.launch {
             wifiScanner.scan()
@@ -74,6 +83,10 @@ class RogueApViewModel @Inject constructor(
     }
 
     fun stopScan() {
+        runStartedAt?.let { started ->
+            runStartedAt = null
+            recordSession(started)
+        }
         scanJob?.cancel()
         scanJob = null
         _state.value = _state.value.copy(isScanning = false)
@@ -123,6 +136,26 @@ class RogueApViewModel @Inject constructor(
         RiskLevel.HIGH -> AlertSeverity.HIGH
         RiskLevel.MEDIUM, RiskLevel.SAFE -> AlertSeverity.MEDIUM
         RiskLevel.LOW -> AlertSeverity.LOW
+    }
+
+    private fun recordSession(startedAt: Long) {
+        val state = _state.value
+        sessions.recordInBackground(
+            tool = "rogue_ap",
+            title = "Rogue AP check",
+            startedAt = startedAt,
+            items = state.alerts.map { a ->
+                SessionItem(
+                    key = a.suspiciousAp.bssid,
+                    label = a.suspiciousAp.ssid,
+                    kind = ItemKind.WIFI,
+                    rssi = a.suspiciousAp.rssi,
+                    detail = a.threatType.label,
+                    flagged = a.riskLevel != RiskLevel.SAFE && a.riskLevel != RiskLevel.LOW
+                )
+            },
+            summary = "${state.totalAps} networks checked · ${state.alerts.size} finding${if (state.alerts.size == 1) "" else "s"}"
+        )
     }
 
     override fun onCleared() {

@@ -44,13 +44,14 @@ import com.abhishek.zerodroid.ui.theme.ZdType
 
 @Composable
 fun BluetoothTrackerScreen(
+    onOpenDevice: (address: String, name: String) -> Unit = { _, _ -> },
     viewModel: BluetoothTrackerViewModel = hiltViewModel()
 ) {
     PermissionGate(
         permissions = PermissionUtils.blePermissions(),
         rationale = "Trackers are Bluetooth devices, so Android asks for these before any app can see them."
     ) {
-        BluetoothTrackerContent(viewModel = viewModel)
+        BluetoothTrackerContent(viewModel = viewModel, onOpenDevice = onOpenDevice)
     }
 }
 
@@ -62,7 +63,7 @@ private fun TrackingRisk.severity(): ZdSeverity = when (this) {
 }
 
 @Composable
-private fun BluetoothTrackerContent(viewModel: BluetoothTrackerViewModel) {
+private fun BluetoothTrackerContent(viewModel: BluetoothTrackerViewModel, onOpenDevice: (String, String) -> Unit) {
     val state by viewModel.state.collectAsState()
 
     HardwareLifecycleEffect(
@@ -114,7 +115,7 @@ private fun BluetoothTrackerContent(viewModel: BluetoothTrackerViewModel) {
             }
             item { ZdSectionLabel("Nearby trackers", trailingText = "${state.trackers.size}") }
             item {
-                ZdListCard(state.trackers) { tracker -> TrackerRow(tracker) }
+                ZdListCard(state.trackers) { tracker -> TrackerRow(tracker, onClick = { onOpenDevice(tracker.address, tracker.displayName) }) }
             }
             item { ZdSectionLabel("How risk is decided") }
             item {
@@ -168,8 +169,9 @@ private fun FollowingCard(following: List<DetectedTracker>) {
 }
 
 @Composable
-private fun TrackerRow(tracker: DetectedTracker) {
+private fun TrackerRow(tracker: DetectedTracker, onClick: () -> Unit) {
     ZdListRow(
+        onClick = onClick,
         title = tracker.displayName,
         subtitle = "${BleDistanceEstimator.rangeLabel(tracker.rssi)} · seen ${tracker.seenCount}× · ${formatSpan(tracker.lastSeen - tracker.firstSeen)}",
         leading = { ZdSignal(tracker.rssi) },

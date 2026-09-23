@@ -6,6 +6,9 @@ import com.abhishek.zerodroid.features.bluetooth_classic.domain.BluetoothClassic
 import com.abhishek.zerodroid.features.bluetooth_classic.domain.BluetoothClassicState
 import com.abhishek.zerodroid.features.bluetooth_classic.domain.SppConnectionManager
 import com.abhishek.zerodroid.features.bluetooth_classic.domain.SppState
+import com.abhishek.zerodroid.core.sessions.ItemKind
+import com.abhishek.zerodroid.core.sessions.SessionItem
+import com.abhishek.zerodroid.core.sessions.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,8 +25,13 @@ import com.abhishek.zerodroid.core.debug.observeDemoRequests
 class BluetoothClassicViewModel @Inject constructor(
     private val scanner: BluetoothClassicScanner,
     private val sppManager: SppConnectionManager,
+    private val sessions: SessionRepository,
     private val demoBus: DemoDataBus
 ) : ViewModel() {
+
+    /** When the current run started; null when no run is in progress. */
+    private var runStartedAt: Long? = null
+
 
     private val _state = MutableStateFlow(BluetoothClassicState())
     val state: StateFlow<BluetoothClassicState> = _state.asStateFlow()
@@ -49,6 +57,7 @@ class BluetoothClassicViewModel @Inject constructor(
     fun startScan() {
         scanJob?.cancel()
         _state.value = _state.value.copy(isScanning = true, discoveredDevices = emptyList())
+        runStartedAt = System.currentTimeMillis()
         scanJob = viewModelScope.launch {
             scanner.discover()
                 .catch { e ->
@@ -61,6 +70,10 @@ class BluetoothClassicViewModel @Inject constructor(
     }
 
     fun stopScan() {
+        runStartedAt?.let { started ->
+            runStartedAt = null
+            recordSession(started)
+        }
         scanJob?.cancel()
         scanner.cancelDiscovery()
         scanJob = null
@@ -82,6 +95,19 @@ class BluetoothClassicViewModel @Inject constructor(
 
     fun disconnectSpp() {
         sppManager.disconnect()
+    }
+
+    private fun recordSession(startedAt: Long) {
+        val devices = _state.value.discoveredDevices
+        sessions.recordInBackground(
+            tool = "bluetooth_classic",
+            title = "Bluetooth Classic discovery",
+            startedAt = startedAt,
+            items = devices.map { d ->
+                SessionItem(key = d.address, label = d.displayName, kind = ItemKind.BT, rssi = d.rssi.takeIf { it != 0 }, detail = d.majorClass)
+            },
+            summary = "${devices.size} discoverable device${if (devices.size == 1) "" else "s"}"
+        )
     }
 
     override fun onCleared() {

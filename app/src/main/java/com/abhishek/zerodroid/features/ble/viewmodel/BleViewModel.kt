@@ -5,6 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.abhishek.zerodroid.features.ble.data.BleRepository
 import com.abhishek.zerodroid.features.ble.domain.BleDevice
 import com.abhishek.zerodroid.features.ble.domain.BleScanState
+import com.abhishek.zerodroid.core.sessions.ItemKind
+import com.abhishek.zerodroid.core.sessions.SessionItem
+import com.abhishek.zerodroid.core.sessions.SessionRepository
+import com.abhishek.zerodroid.features.ble.domain.BleDeviceTypeIdentifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -21,8 +25,13 @@ import com.abhishek.zerodroid.core.debug.observeDemoRequests
 @HiltViewModel
 class BleViewModel @Inject constructor(
     private val repository: BleRepository,
+    private val sessions: SessionRepository,
     private val demoBus: DemoDataBus
 ) : ViewModel() {
+
+    /** When the current run started; null when no run is in progress. */
+    private var runStartedAt: Long? = null
+
 
     private val _scanState = MutableStateFlow(BleScanState(isBluetoothEnabled = repository.isAvailable))
     val scanState: StateFlow<BleScanState> = _scanState.asStateFlow()
@@ -48,6 +57,7 @@ class BleViewModel @Inject constructor(
 
         scanJob?.cancel()
         _scanState.value = BleScanState(isScanning = true, isBluetoothEnabled = true)
+        runStartedAt = System.currentTimeMillis()
         scanJob = viewModelScope.launch {
             repository.scan()
                 .catch { e ->
@@ -68,6 +78,10 @@ class BleViewModel @Inject constructor(
     }
 
     fun stopScan() {
+        runStartedAt?.let { started ->
+            runStartedAt = null
+            recordSession(started)
+        }
         autoStopJob?.cancel()
         autoStopJob = null
         scanJob?.cancel()
@@ -90,6 +104,28 @@ class BleViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    private fun recordSession(startedAt: Long) {
+        val devices = _scanState.value.devices
+        val typed = devices.map { it to BleDeviceTypeIdentifier.identify(it.name, it.serviceUuids).category }
+        val trackers = typed.count { it.second == "Tracker" }
+        sessions.recordInBackground(
+            tool = "ble",
+            title = "BLE scan",
+            startedAt = startedAt,
+            items = typed.map { (d, category) ->
+                SessionItem(
+                    key = d.address,
+                    label = d.name ?: "[no name]",
+                    kind = if (category == "Tracker") ItemKind.TRACKER else ItemKind.BLE,
+                    rssi = d.rssi,
+                    detail = category,
+                    flagged = category == "Tracker"
+                )
+            },
+            summary = "${devices.size} devices" + if (trackers > 0) " · $trackers tracker${if (trackers > 1) "s" else ""}" else ""
+        )
     }
 
     override fun onCleared() {

@@ -10,6 +10,10 @@ import com.abhishek.zerodroid.features.wifi.domain.WifiScanner
 import com.abhishek.zerodroid.core.debug.DemoData
 import com.abhishek.zerodroid.core.debug.DemoDataBus
 import com.abhishek.zerodroid.core.debug.observeDemoRequests
+import com.abhishek.zerodroid.core.sessions.ItemKind
+import com.abhishek.zerodroid.core.sessions.SessionItem
+import com.abhishek.zerodroid.core.sessions.SessionRepository
+import com.abhishek.zerodroid.features.wifi.domain.WifiAssessment
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,6 +27,7 @@ import kotlinx.coroutines.flow.catch
 @HiltViewModel
 class WifiViewModel @Inject constructor(
     private val wifiScanner: WifiScanner,
+    private val sessions: SessionRepository,
     demoBus: DemoDataBus
 ) : ViewModel() {
 
@@ -56,8 +61,12 @@ class WifiViewModel @Inject constructor(
     private var scanJob: Job? = null
     private var autoStopJob: Job? = null
 
+    /** When the current run started; null when no run is in progress. */
+    private var runStartedAt: Long? = null
+
     fun startScan() {
         if (scanJob?.isActive == true) return
+        runStartedAt = System.currentTimeMillis()
         _isScanning.value = true
         _error.value = null
         scanJob = viewModelScope.launch {
@@ -81,6 +90,10 @@ class WifiViewModel @Inject constructor(
     }
 
     fun stopScan() {
+        runStartedAt?.let { started ->
+            runStartedAt = null
+            recordSession(started)
+        }
         autoStopJob?.cancel()
         autoStopJob = null
         scanJob?.cancel()
@@ -94,6 +107,27 @@ class WifiViewModel @Inject constructor(
 
     fun selectBand(band: WifiBand?) {
         _selectedBand.value = band
+    }
+
+    private fun recordSession(startedAt: Long) {
+        val aps = _accessPoints.value
+        val weak = aps.count { WifiAssessment.isWeak(it.security) }
+        sessions.recordInBackground(
+            tool = "wifi",
+            title = "WiFi scan",
+            startedAt = startedAt,
+            items = aps.map { ap ->
+                SessionItem(
+                    key = ap.bssid,
+                    label = WifiAssessment.displayName(ap),
+                    kind = ItemKind.WIFI,
+                    rssi = ap.rssi,
+                    detail = "${ap.security.label} · ch ${ap.channel}",
+                    flagged = WifiAssessment.isWeak(ap.security)
+                )
+            },
+            summary = "${aps.size} networks" + if (weak > 0) " · $weak weak security" else " · all encrypted"
+        )
     }
 
     override fun onCleared() {

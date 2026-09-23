@@ -33,7 +33,7 @@ class RogueApViewModelTest {
     private val twin = WifiAccessPoint("Chandra-Lab", "DE:AD:BE:EF:00:01", -70, 2437, "[ESS]")
     private val neighbour = WifiAccessPoint("Neighbour", "11:22:33:44:55:66", -70, 2437, "[WPA3-SAE-CCMP][ESS]")
 
-    private fun vm() = RogueApViewModel(scanner, alerts, DemoDataBus())
+    private fun vm() = RogueApViewModel(scanner, alerts, mockk<com.abhishek.zerodroid.core.sessions.SessionRepository>(relaxed = true), DemoDataBus())
 
     @Test
     fun `an open twin of a secured network is flagged and counted`() {

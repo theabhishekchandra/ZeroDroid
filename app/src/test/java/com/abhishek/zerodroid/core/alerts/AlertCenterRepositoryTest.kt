@@ -83,4 +83,33 @@ class AlertCenterRepositoryTest {
         assertEquals("Tracker Scanner", AlertSource.BLUETOOTH_TRACKER.label)
         assertEquals(5, AlertSource.entries.size)
     }
+
+    @Test
+    fun `resolving and reopening write status through the dao`() = runBlocking {
+        io.mockk.coEvery { dao.setStatus(any(), any(), any(), any()) } returns Unit
+        every { dao.observeRecent() } returns flowOf(emptyList())
+        val repo = AlertCenterRepository(dao)
+
+        repo.resolve("a", AlertResolution.MINE, now = 42L)
+        repo.reopen("a")
+
+        io.mockk.coVerify { dao.setStatus("a", "RESOLVED", "MINE", 42L) }
+        io.mockk.coVerify { dao.setStatus("a", "OPEN", null, null) }
+    }
+
+    @Test
+    fun `status and resolution are mapped and open alerts filtered`() = runBlocking {
+        every { dao.observeRecent() } returns flowOf(
+            listOf(
+                entity("a"),
+                AlertEntity("b", "ROGUE_AP", "HIGH", "t", "d", 1L, status = "RESOLVED", resolution = "SAFE", resolvedAt = 5L)
+            )
+        )
+        val repo = AlertCenterRepository(dao)
+
+        val all = repo.alerts.first()
+        assertEquals(AlertStatus.RESOLVED, all[1].status)
+        assertEquals(AlertResolution.SAFE, all[1].resolution)
+        assertEquals(listOf("a"), repo.openAlerts.first().map { it.id })
+    }
 }

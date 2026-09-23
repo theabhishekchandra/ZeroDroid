@@ -50,7 +50,7 @@ private const val WEAK_RSSI = -85
 
 @Composable
 fun BleScreen(
-    onOpenDevice: (address: String, name: String?) -> Unit = { _, _ -> },
+    onOpenDevice: (address: String, name: String?, kind: String) -> Unit = { _, _, _ -> },
     viewModel: BleViewModel = hiltViewModel()
 ) {
     PermissionGate(
@@ -62,7 +62,7 @@ fun BleScreen(
 }
 
 @Composable
-private fun BleContent(viewModel: BleViewModel, onOpenDevice: (String, String?) -> Unit) {
+private fun BleContent(viewModel: BleViewModel, onOpenDevice: (String, String?, String) -> Unit) {
     val scanState by viewModel.scanState.collectAsState()
     var tab by rememberSaveable { mutableIntStateOf(0) }
 
@@ -94,7 +94,7 @@ private fun BleContent(viewModel: BleViewModel, onOpenDevice: (String, String?) 
 }
 
 @Composable
-private fun DevicesTab(viewModel: BleViewModel, onOpenDevice: (String, String?) -> Unit) {
+private fun DevicesTab(viewModel: BleViewModel, onOpenDevice: (String, String?, String) -> Unit) {
     val scanState by viewModel.scanState.collectAsState()
     var category by rememberSaveable { mutableStateOf<String?>(null) }
     var hideWeak by rememberSaveable { mutableStateOf(false) }
@@ -180,14 +180,14 @@ private fun DevicesTab(viewModel: BleViewModel, onOpenDevice: (String, String?) 
                     DeviceRow(
                         device = device,
                         category = cat,
-                        onOpen = { onOpenDevice(device.address, device.name) },
+                        onOpen = { onOpenDevice(device.address, device.name, if (cat == "Tracker") "TRACKER" else "BLE") },
                         onBookmark = { viewModel.toggleBookmark(device) }
                     )
                 }
             }
         }
         item {
-            ZdFootnote("Distance is estimated from signal strength and can be off by 2× indoors. Tap a device to explore its GATT services.")
+            ZdFootnote("Distance is estimated from signal strength and can be off by 2× indoors. Tap a device for its history and GATT services.")
         }
     }
 }

@@ -32,7 +32,7 @@ class BluetoothTrackerViewModelTest {
     private val tile = BleDevice("Tile Pro", "E4:B0:21:77:0A:1F", -80)
     private val buds = BleDevice("Galaxy Buds", "5C:F3:70:A1:02:9B", -48)
 
-    private fun vm() = BluetoothTrackerViewModel(scanner, alerts, DemoDataBus())
+    private fun vm() = BluetoothTrackerViewModel(scanner, alerts, mockk<com.abhishek.zerodroid.core.sessions.SessionRepository>(relaxed = true), DemoDataBus())
 
     @Test
     fun `only tracker devices are kept and counted`() {

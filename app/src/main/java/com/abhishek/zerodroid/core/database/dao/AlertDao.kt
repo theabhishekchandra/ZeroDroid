@@ -18,4 +18,14 @@ interface AlertDao {
 
     @Query("DELETE FROM alerts")
     suspend fun clearAll()
+
+    @Query("UPDATE alerts SET status = :status, resolution = :resolution, resolvedAt = :resolvedAt WHERE id = :id")
+    suspend fun setStatus(id: String, status: String, resolution: String?, resolvedAt: Long?)
+
+    @Query("DELETE FROM alerts WHERE status = 'RESOLVED'")
+    suspend fun clearResolved()
+
+    /** Resolved alerts older than the retention window are dropped. */
+    @Query("DELETE FROM alerts WHERE status = 'RESOLVED' AND resolvedAt < :cutoff")
+    suspend fun pruneResolved(cutoff: Long)
 }

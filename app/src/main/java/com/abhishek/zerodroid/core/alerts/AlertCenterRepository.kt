@@ -42,7 +42,21 @@ class AlertCenterRepository @Inject constructor(
         )
     }
 
+    /** Alerts still waiting for the user to triage them. */
+    val openAlerts: Flow<List<UnifiedAlert>> = alerts.map { list -> list.filter { it.isOpen } }
+
     suspend fun clearAll() = alertDao.clearAll()
+
+    suspend fun resolve(id: String, resolution: AlertResolution, now: Long = System.currentTimeMillis()) =
+        alertDao.setStatus(id, AlertStatus.RESOLVED.name, resolution.name, now)
+
+    suspend fun reopen(id: String) = alertDao.setStatus(id, AlertStatus.OPEN.name, null, null)
+
+    suspend fun clearResolved() = alertDao.clearResolved()
+
+    /** Drops resolved alerts older than [RESOLVED_RETENTION_MS] so patterns stay visible for a month. */
+    suspend fun pruneResolved(now: Long = System.currentTimeMillis()) =
+        alertDao.pruneResolved(now - RESOLVED_RETENTION_MS)
 
     private fun AlertEntity.toUnifiedAlertOrNull(): UnifiedAlert? {
         val source = runCatching { AlertSource.valueOf(source) }.getOrNull() ?: return null
@@ -53,7 +67,14 @@ class AlertCenterRepository @Inject constructor(
             severity = severity,
             title = title,
             detail = detail,
-            timestamp = timestamp
+            timestamp = timestamp,
+            status = runCatching { AlertStatus.valueOf(status) }.getOrDefault(AlertStatus.OPEN),
+            resolution = resolution?.let { r -> runCatching { AlertResolution.valueOf(r) }.getOrNull() },
+            resolvedAt = resolvedAt
         )
+    }
+
+    companion object {
+        const val RESOLVED_RETENTION_MS = 30L * 24 * 60 * 60 * 1000
     }
 }

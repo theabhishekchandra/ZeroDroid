@@ -66,6 +66,10 @@ import com.abhishek.zerodroid.features.sdr.ui.SdrScreen
 import com.abhishek.zerodroid.features.sensors.ui.SensorScreen
 import com.abhishek.zerodroid.features.signal_logger.ui.SignalLoggerScreen
 import com.abhishek.zerodroid.features.tools.ToolsScreen
+import com.abhishek.zerodroid.features.sessions.ui.CompareScreen
+import com.abhishek.zerodroid.features.sessions.ui.SessionDetailScreen
+import com.abhishek.zerodroid.features.sessions.ui.SessionsScreen
+import com.abhishek.zerodroid.features.devices.DeviceDetailScreen
 import com.abhishek.zerodroid.features.ultrasonic.ui.UltrasonicScreen
 import com.abhishek.zerodroid.features.usb.ui.UsbScreen
 import com.abhishek.zerodroid.features.usbcamera.ui.UsbCameraScreen
@@ -112,14 +116,16 @@ internal val bottomTabs: List<BottomTab> = listOf(
     BottomTab(ZeroDroidScreen.Dashboard.route, "Home", ZdIcons.Home),
     BottomTab(ZeroDroidScreen.Tools.route, "Tools", ZdIcons.Grid),
     BottomTab(ZeroDroidScreen.RfBugSweeper.route, "Sweep", ZdIcons.Sweep, emphasized = true),
-    BottomTab(ZeroDroidScreen.AlertCenter.route, "Alerts", ZdIcons.Bell, showsAlertBadge = true)
+    BottomTab(ZeroDroidScreen.AlertCenter.route, "Alerts", ZdIcons.Bell, showsAlertBadge = true),
+    BottomTab(ZeroDroidScreen.Sessions.route, "Sessions", ZdIcons.Clock)
 )
 
 /** Routes that show the bottom bar. The sweep tab opens a full tool screen, so it hides it. */
 private val tabRoutes = setOf(
     ZeroDroidScreen.Dashboard.route,
     ZeroDroidScreen.Tools.route,
-    ZeroDroidScreen.AlertCenter.route
+    ZeroDroidScreen.AlertCenter.route,
+    ZeroDroidScreen.Sessions.route
 )
 
 /** Opens a destination from a tab or a card, keeping Home as the single root. */
@@ -182,16 +188,20 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
             }
             composable(ZeroDroidScreen.AlertCenter.route) {
                 Column(Modifier.fillMaxSize()) {
-                    ZdHeader(path = "/alerts", title = "Alerts")
-                    Box(Modifier.weight(1f)) { AlertCenterScreen() }
+                    ZdHeader(path = "/alerts", title = "Alerts") {
+                        DemoDataAction(route = ZeroDroidScreen.AlertCenter.route)
+                    }
+                    Box(Modifier.weight(1f)) {
+                        AlertCenterScreen(onOpenTool = { navController.navigate(it) { launchSingleTop = true } })
+                    }
                 }
             }
 
             tool(ZeroDroidScreen.Sensors, navController) { SensorScreen() }
             tool(ZeroDroidScreen.Wifi, navController) { WifiScreen() }
             tool(ZeroDroidScreen.Ble, navController) {
-                BleScreen(onOpenDevice = { address, name ->
-                    navController.navigate("gatt_explorer/${Uri.encode(address)}/${Uri.encode(name ?: "")}")
+                BleScreen(onOpenDevice = { address, name, kind ->
+                    navController.navigate(deviceRoute(address, name ?: "", kind))
                 })
             }
             tool(ZeroDroidScreen.Nfc, navController) { NfcScreen() }
@@ -210,7 +220,9 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
             tool(ZeroDroidScreen.WifiDirect, navController) { WifiDirectScreen() }
             tool(ZeroDroidScreen.HiddenCamera, navController) { HiddenCameraScreen() }
             tool(ZeroDroidScreen.GpsSpoofDetector, navController) { GpsSpoofScreen() }
-            tool(ZeroDroidScreen.BluetoothTracker, navController) { BluetoothTrackerScreen() }
+            tool(ZeroDroidScreen.BluetoothTracker, navController) {
+                BluetoothTrackerScreen(onOpenDevice = { address, name -> navController.navigate(deviceRoute(address, name, "TRACKER")) })
+            }
             tool(ZeroDroidScreen.RogueAp, navController) { RogueApScreen() }
             tool(ZeroDroidScreen.NetworkScanner, navController) { NetworkScannerScreen() }
             tool(ZeroDroidScreen.RfBugSweeper, navController) { RfBugSweeperScreen() }
@@ -219,6 +231,30 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
             tool(ZeroDroidScreen.DeauthDetector, navController) { DeauthDetectorScreen() }
             tool(ZeroDroidScreen.EmfMapper, navController) { EmfMapperScreen() }
             tool(ZeroDroidScreen.SignalLogger, navController) { SignalLoggerScreen() }
+
+            composable(ZeroDroidScreen.Sessions.route) {
+                SessionsScreen(
+                    onOpenSession = { navController.navigate("session/$it") },
+                    onCompare = { a, b -> navController.navigate("compare/$a/$b") }
+                )
+            }
+            pushed("session/{id}", "/sessions/detail", "Session", navController, listOf("id")) {
+                SessionDetailScreen(
+                    onDeleted = { navController.popBackStack() },
+                    onOpenDevice = { navController.navigate(deviceRoute(it.key, it.label, it.kind.name)) }
+                )
+            }
+            pushed("compare/{a}/{b}", "/sessions/compare", "Compare sessions", navController, listOf("a", "b")) {
+                CompareScreen(onOpenDevice = { navController.navigate(deviceRoute(it.key, it.label, it.kind.name)) })
+            }
+            pushed("device/{key}/{label}/{kind}", "/devices", "Device detail", navController, listOf("key", "label", "kind")) {
+                DeviceDetailScreen(
+                    onOpenGatt = { address, name ->
+                        navController.navigate("gatt_explorer/${Uri.encode(address)}/${Uri.encode(name ?: "")}")
+                    },
+                    onOpenSession = { navController.navigate("session/$it") }
+                )
+            }
 
             composable(
                 route = "gatt_explorer/{address}/{name}",
@@ -242,6 +278,27 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** Route to a device's cross-session history; every argument is URL-encoded. */
+internal fun deviceRoute(key: String, label: String, kind: String): String =
+    "device/${Uri.encode(key)}/${Uri.encode(label.ifBlank { " " })}/$kind"
+
+/** A pushed (non-tab) screen with the standard header and a back button. */
+private fun NavGraphBuilder.pushed(
+    route: String,
+    path: String,
+    title: String,
+    navController: NavHostController,
+    args: List<String>,
+    content: @Composable () -> Unit
+) {
+    composable(route, arguments = args.map { navArgument(it) { type = NavType.StringType } }) {
+        Column(Modifier.fillMaxSize()) {
+            ZdHeader(path = path, title = title, onBack = { navController.popBackStack() })
+            Box(Modifier.weight(1f)) { content() }
         }
     }
 }

@@ -16,7 +16,8 @@ class AppShellViewModel @Inject constructor(
     alertCenterRepository: AlertCenterRepository
 ) : ViewModel() {
 
-    val alertCount: StateFlow<Int> = alertCenterRepository.alerts
+    /** Only alerts still waiting for triage count towards the badge. */
+    val alertCount: StateFlow<Int> = alertCenterRepository.openAlerts
         .map { it.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 }
