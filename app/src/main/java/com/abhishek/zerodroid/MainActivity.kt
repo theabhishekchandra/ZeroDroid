@@ -1,6 +1,7 @@
 package com.abhishek.zerodroid
 
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
@@ -11,6 +12,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.abhishek.zerodroid.core.di.NfcTagBus
+import com.abhishek.zerodroid.core.notify.DeepLinkBus
+import com.abhishek.zerodroid.features.surfaces.TileRoutes
+import com.abhishek.zerodroid.features.watch.data.WatchRuleStore
+import com.abhishek.zerodroid.features.watch.service.WatchService
 import com.abhishek.zerodroid.navigation.AppNavigation
 import com.abhishek.zerodroid.ui.theme.ZeroDroidTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -21,6 +26,12 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var nfcTagBus: NfcTagBus
+
+    @Inject
+    lateinit var deepLinks: DeepLinkBus
+
+    @Inject
+    lateinit var watchRules: WatchRuleStore
 
     private var nfcAdapter: NfcAdapter? = null
     private var nfcPendingIntent: PendingIntent? = null
@@ -45,11 +56,14 @@ class MainActivity : ComponentActivity() {
 
         // Handle NFC tag from initial launch intent
         handleNfcIntent(intent)
+        handleRouteIntent(intent)
     }
 
     override fun onResume() {
         super.onResume()
         nfcAdapter?.enableForegroundDispatch(this, nfcPendingIntent, null, null)
+        // Watch rules resume whenever the app is opened (Android won't start them from the background).
+        WatchService.sync(this, watchRules)
     }
 
     override fun onPause() {
@@ -60,6 +74,25 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleNfcIntent(intent)
+        handleRouteIntent(intent)
+    }
+
+    /** Notifications, widgets and tiles open a screen by route; long-pressed tiles by component. */
+    private fun handleRouteIntent(intent: Intent) {
+        val route = intent.getStringExtra(DeepLinkBus.EXTRA_ROUTE)
+            ?: if (intent.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES") {
+                val component = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_COMPONENT_NAME, ComponentName::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_COMPONENT_NAME)
+                }
+                TileRoutes.forComponent(component?.className)
+            } else null
+        if (route != null) {
+            deepLinks.open(route)
+            intent.removeExtra(DeepLinkBus.EXTRA_ROUTE)
+        }
     }
 
     private fun handleNfcIntent(intent: Intent) {

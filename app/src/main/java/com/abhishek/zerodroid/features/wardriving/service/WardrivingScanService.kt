@@ -3,6 +3,7 @@ package com.abhishek.zerodroid.features.wardriving.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
@@ -38,6 +39,7 @@ class WardrivingScanService : Service() {
         const val CHANNEL_ID = "wardriving_scan"
         const val NOTIFICATION_ID = 1001
         const val EXTRA_SESSION_ID = "session_id"
+        const val ACTION_STOP = "com.abhishek.zerodroid.wardriving.STOP"
     }
 
     override fun onCreate() {
@@ -46,6 +48,10 @@ class WardrivingScanService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         startForeground(NOTIFICATION_ID, buildNotification())
 
         val sessionId = intent?.getStringExtra(EXTRA_SESSION_ID)
@@ -87,6 +93,14 @@ class WardrivingScanService : Service() {
             .setContentText("Scanning Wi-Fi networks with GPS logging")
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
+            .addAction(
+                0,
+                "Stop",
+                PendingIntent.getService(
+                    this, 0, Intent(this, WardrivingScanService::class.java).setAction(ACTION_STOP),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            )
             .build()
     }
 }

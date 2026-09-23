@@ -87,6 +87,7 @@ private val whenFormat = SimpleDateFormat("EEE d MMM · HH:mm", Locale.US)
 @Composable
 fun DeviceDetailScreen(
     onOpenGatt: (address: String, name: String?) -> Unit,
+    onLocate: (address: String, label: String) -> Unit,
     onOpenSession: (String) -> Unit,
     viewModel: DeviceDetailViewModel = hiltViewModel()
 ) {
@@ -173,6 +174,14 @@ fun DeviceDetailScreen(
             }
         }
         if (isBle) {
+            item {
+                ZdButton(
+                    "Locate",
+                    onClick = { onLocate(state.key, state.label) },
+                    icon = ZdIcons.Crosshair,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             item {
                 ZdButton(
                     "Open in GATT Explorer",

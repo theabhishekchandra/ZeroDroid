@@ -1,5 +1,6 @@
 package com.abhishek.zerodroid.core.sessions
 
+import com.abhishek.zerodroid.core.database.dao.SeenDeviceRow
 import com.abhishek.zerodroid.core.database.dao.SessionDao
 import com.abhishek.zerodroid.core.database.entity.SessionEntity
 import com.abhishek.zerodroid.core.database.entity.SessionItemEntity
@@ -26,7 +27,8 @@ class SessionRepository @Inject constructor(
     val sessions: Flow<List<Session>> = dao.observeAll().map { list -> list.map { it.toDomain() } }
 
     /**
-     * Saves a finished run. Runs that saw nothing are not worth a session and return null.
+     * Saves a finished run. Runs that saw nothing are not worth a session and return null,
+     * unless [keepEmpty]: a clean room sweep is itself the result.
      */
     suspend fun record(
         tool: String,
@@ -36,9 +38,10 @@ class SessionRepository @Inject constructor(
         items: List<SessionItem>,
         summary: String,
         findingCount: Int = items.count { it.flagged },
-        place: String? = null
+        place: String? = null,
+        keepEmpty: Boolean = false
     ): String? {
-        if (items.isEmpty()) return null
+        if (items.isEmpty() && !keepEmpty) return null
         val id = UUID.randomUUID().toString()
         dao.insertWithItems(
             SessionEntity(
@@ -90,6 +93,12 @@ class SessionRepository @Inject constructor(
     suspend fun rename(id: String, place: String?) = dao.rename(id, place?.trim()?.ifEmpty { null })
 
     suspend fun delete(id: String) = dao.delete(id)
+
+    suspend fun deleteAll() = dao.deleteAll()
+
+    /** Devices and networks seen in any session, matched on name or address. */
+    suspend fun searchSeen(query: String): List<SeenDeviceRow> =
+        if (query.isBlank()) emptyList() else dao.searchSeen(query.trim())
 
     suspend fun prune(retentionMs: Long = DEFAULT_RETENTION_MS, now: Long = System.currentTimeMillis()) =
         dao.deleteOlderThan(now - retentionMs)

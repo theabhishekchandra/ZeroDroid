@@ -53,4 +53,31 @@ interface SessionDao {
 
     @Query("SELECT * FROM sessions WHERE id IN (:ids)")
     suspend fun getAll(ids: List<String>): List<SessionEntity>
+
+    /** Devices and networks ever saved in a session whose name or address matches [query]. */
+    @Query(
+        """
+        SELECT session_items.itemKey AS itemKey, session_items.label AS label, session_items.kind AS kind,
+               MAX(sessions.startedAt) AS lastSeen, COUNT(DISTINCT sessions.id) AS sessionCount
+        FROM session_items
+        INNER JOIN sessions ON sessions.id = session_items.sessionId
+        WHERE session_items.label LIKE '%' || :query || '%' OR session_items.itemKey LIKE '%' || :query || '%'
+        GROUP BY session_items.itemKey
+        ORDER BY lastSeen DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun searchSeen(query: String, limit: Int = 20): List<SeenDeviceRow>
+
+    @Query("DELETE FROM sessions")
+    suspend fun deleteAll()
 }
+
+/** One device or network across every session it appeared in. */
+data class SeenDeviceRow(
+    val itemKey: String,
+    val label: String,
+    val kind: String,
+    val lastSeen: Long,
+    val sessionCount: Int
+)

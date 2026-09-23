@@ -2,19 +2,16 @@ package com.abhishek.zerodroid.features.ble.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,428 +20,208 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdCardShape
+import com.abhishek.zerodroid.core.ui.zd.ZdChip
+import com.abhishek.zerodroid.core.ui.zd.ZdChipRow
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdMetric
+import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
 import com.abhishek.zerodroid.features.ble.domain.HciPacket
 import com.abhishek.zerodroid.features.ble.domain.HciPacketType
 import com.abhishek.zerodroid.features.ble.domain.HciSnoopLog
 import com.abhishek.zerodroid.features.ble.domain.toHexDump
 import com.abhishek.zerodroid.features.ble.viewmodel.HciSnoopViewModel
-import com.abhishek.zerodroid.ui.theme.TerminalAmber
-import com.abhishek.zerodroid.ui.theme.TerminalCyan
-import com.abhishek.zerodroid.ui.theme.TerminalGreen
-import com.abhishek.zerodroid.ui.theme.TerminalRed
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
 import java.util.Locale
+
+/** Packets with an ATT error or failed status; what people usually look for first. */
+internal fun HciPacket.isError(): Boolean = summary.contains("Error", ignoreCase = true)
+
+/** Time since the first packet, as mm:ss.SSS. */
+internal fun hciOffset(micros: Long, startMicros: Long): String {
+    val d = (micros - startMicros).coerceAtLeast(0)
+    val ms = d / 1_000
+    return String.format(Locale.US, "%02d:%02d.%03d", ms / 60_000, (ms / 1_000) % 60, ms % 1_000)
+}
+
+internal fun formatBytes(size: Long): String = when {
+    size < 0 -> "unknown size"
+    size < 1024 -> "$size B"
+    size < 1024 * 1024 -> "${size / 1024} KB"
+    else -> String.format(Locale.US, "%.1f MB", size / (1024.0 * 1024.0))
+}
+
+private val HciPacketType.short: String
+    get() = when (this) {
+        HciPacketType.Command -> "CMD"
+        HciPacketType.Event -> "EVT"
+        HciPacketType.AclData -> "ACL"
+        HciPacketType.Unknown -> "???"
+    }
 
 @Composable
 fun HciSnoopPanel(viewModel: HciSnoopViewModel) {
     val state by viewModel.state.collectAsState()
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
+    var errorsOnly by rememberSaveable { mutableStateOf(false) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { viewModel.loadFromUri(it) }
     }
+    val choose = { picker.launch(arrayOf("*/*")) }
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Instructions card
-        item {
-            TerminalCard {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "BLE HCI Snoop Log Analyzer",
-                        color = TerminalGreen,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "1. Go to Settings > Developer Options\n" +
-                                "2. Enable \"Bluetooth HCI snoop log\"\n" +
-                                "3. Toggle Bluetooth OFF then ON\n" +
-                                "4. Reproduce BLE activity, then load the log",
-                        color = TerminalGreen.copy(alpha = 0.7f),
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        lineHeight = 18.sp
-                    )
+        val log = state.log
+        if (log == null) {
+            item {
+                ZdStatePanel(
+                    kicker = if (state.isLoading) "Reading" else "No log loaded",
+                    icon = ZdIcons.Document,
+                    iconTint = ZdColors.Info,
+                    iconBackground = ZdColors.InfoBg,
+                    title = "See what Bluetooth really sent",
+                    body = "Android can record every Bluetooth packet. Turn on “Bluetooth HCI snoop log” in Developer options, toggle Bluetooth off and on, reproduce the problem, then load the log here.",
+                    primaryAction = if (state.isLoading) null else "Load from this phone" to viewModel::loadLog,
+                    primaryIcon = ZdIcons.Download,
+                    fullScreen = false
+                )
+            }
+            if (!state.isLoading) {
+                item { ZdButton("Choose a log file", onClick = choose, variant = ZdButtonVariant.Secondary, icon = ZdIcons.Folder, modifier = Modifier.fillMaxWidth()) }
+            }
+        } else {
+            item { FileCard(log, state.loadedFromPath, onReplace = choose) }
+            item { Stats(log) }
+            item {
+                val errors = log.packets.count { it.isError() }
+                ZdChipRow(contentPadding = 0.dp) {
+                    ZdChip("All", selected = state.filter == null && !errorsOnly, onClick = { errorsOnly = false; viewModel.setFilter(null) })
+                    listOf(HciPacketType.Command, HciPacketType.Event, HciPacketType.AclData).forEach { type ->
+                        ZdChip(type.short, selected = state.filter == type && !errorsOnly, onClick = { errorsOnly = false; viewModel.setFilter(type) })
+                    }
+                    if (errors > 0) ZdChip("Errors $errors", selected = errorsOnly, onClick = { errorsOnly = true; viewModel.setFilter(null) })
                 }
             }
-        }
-
-        // Action buttons
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.loadLog() },
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.isLoading
-                ) {
-                    Text(
-                        text = "Load Log",
-                        color = TerminalGreen,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-                OutlinedButton(
-                    onClick = { filePickerLauncher.launch(arrayOf("*/*")) },
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.isLoading
-                ) {
-                    Text(
-                        text = "Select File",
-                        color = TerminalCyan,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
+            val start = log.packets.firstOrNull()?.timestampMicros ?: 0L
+            val shown = log.packets.filter { (state.filter == null || it.packetType == state.filter) && (!errorsOnly || it.isError()) }
+            if (shown.isEmpty()) {
+                item { ZdFootnote("No packets match this filter.") }
             }
+            items(shown, key = { it.index }) { PacketRow(it, start) }
         }
 
-        // Loading indicator
         if (state.isLoading) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(
-                            color = TerminalGreen,
-                            modifier = Modifier.size(32.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Parsing HCI snoop log...",
-                            color = TerminalGreen.copy(alpha = 0.7f),
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
+                Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(18.dp), color = ZdColors.Accent, strokeWidth = 2.dp)
+                    Text("  Parsing the log…", style = ZdType.Caption, color = ZdColors.Text3)
                 }
             }
         }
-
-        // Error display
-        state.error?.let { error ->
-            item {
-                TerminalCard {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "ERROR",
-                            color = TerminalRed,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = error,
-                            color = TerminalRed.copy(alpha = 0.8f),
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 16.sp
-                        )
-                    }
-                }
-            }
+        state.error?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
+        if (log != null) {
+            item { ZdFootnote("Tap a packet to see its bytes. Logs can contain device addresses and data you exchanged; share them carefully.") }
         }
+    }
+}
 
-        // Log info + filters + packets
-        state.log?.let { log ->
-            // File info card
-            item {
-                LogInfoCard(log = log, loadedFrom = state.loadedFromPath)
-            }
-
-            // Filter chips
-            item {
-                FilterChipRow(
-                    currentFilter = state.filter,
-                    onFilterSelected = { viewModel.setFilter(it) },
-                    log = log
+@Composable
+private fun FileCard(log: HciSnoopLog, source: String?, onReplace: () -> Unit) {
+    ZdCard(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ZdIconTile(ZdIcons.Document, tint = ZdColors.Info, background = ZdColors.InfoBg)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    source?.substringAfterLast('/')?.ifBlank { null } ?: "btsnoop_hci.log",
+                    style = ZdType.Label,
+                    color = ZdColors.Text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+                Text("${formatBytes(log.fileSize)} · btsnoop v${log.version}", style = ZdType.Caption, color = ZdColors.Text3)
             }
+            ZdButton("Replace", onClick = onReplace, variant = ZdButtonVariant.Ghost, height = 36.dp)
+        }
+    }
+}
 
-            // Packet list
-            val filteredPackets = if (state.filter != null) {
-                log.packets.filter { it.packetType == state.filter }
-            } else {
-                log.packets
-            }
-
-            items(
-                items = filteredPackets,
-                key = { it.index }
-            ) { packet ->
-                PacketCard(packet = packet)
-            }
-
-            // Bottom spacer
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
+@Composable
+private fun Stats(log: HciSnoopLog) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(
+            Triple("%,d".format(log.packetCount), "Packets", ZdColors.Text),
+            Triple("${log.packets.count { it.packetType == HciPacketType.Command }}", "Commands", ZdColors.Text),
+            Triple("${log.packets.count { it.packetType == HciPacketType.Event }}", "Events", ZdColors.Info),
+            Triple("${log.packets.count { it.packetType == HciPacketType.AclData }}", "ACL", ZdColors.Accent)
+        ).forEach { (value, label, color) ->
+            ZdCard(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 6.dp, vertical = 10.dp)) {
+                ZdMetric(value, label, Modifier.fillMaxWidth(), valueColor = color)
             }
         }
     }
 }
 
 @Composable
-private fun LogInfoCard(log: HciSnoopLog, loadedFrom: String?) {
-    TerminalCard {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "LOG INFO",
-                color = TerminalAmber,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                fontFamily = FontFamily.Monospace
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-
-            val fileSizeStr = when {
-                log.fileSize < 0 -> "unknown"
-                log.fileSize < 1024 -> "${log.fileSize} B"
-                log.fileSize < 1024 * 1024 -> "${log.fileSize / 1024} KB"
-                else -> String.format(Locale.US, "%.1f MB", log.fileSize / (1024.0 * 1024.0))
-            }
-
-            val cmdCount = log.packets.count { it.packetType == HciPacketType.Command }
-            val evtCount = log.packets.count { it.packetType == HciPacketType.Event }
-            val aclCount = log.packets.count { it.packetType == HciPacketType.AclData }
-
-            val infoLines = buildString {
-                loadedFrom?.let { append("Source: $it\n") }
-                append("Packets: ${log.packetCount}  |  Size: $fileSizeStr\n")
-                append("Version: ${log.version}  |  Datalink: ${log.datalinkType}\n")
-                append("CMD: $cmdCount  |  EVT: $evtCount  |  ACL: $aclCount")
-            }
-
-            Text(
-                text = infoLines,
-                color = TerminalGreen.copy(alpha = 0.8f),
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                lineHeight = 16.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun FilterChipRow(
-    currentFilter: HciPacketType?,
-    onFilterSelected: (HciPacketType?) -> Unit,
-    log: HciSnoopLog
-) {
-    val scrollState = rememberScrollState()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(scrollState),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        data class ChipInfo(
-            val label: String,
-            val filter: HciPacketType?,
-            val color: Color,
-            val count: Int
-        )
-
-        val chips = listOf(
-            ChipInfo("All", null, TerminalGreen, log.packetCount),
-            ChipInfo("CMD", HciPacketType.Command, TerminalAmber,
-                log.packets.count { it.packetType == HciPacketType.Command }),
-            ChipInfo("ACL", HciPacketType.AclData, TerminalCyan,
-                log.packets.count { it.packetType == HciPacketType.AclData }),
-            ChipInfo("EVT", HciPacketType.Event, TerminalAmber,
-                log.packets.count { it.packetType == HciPacketType.Event })
-        )
-
-        chips.forEach { chip ->
-            FilterChip(
-                selected = currentFilter == chip.filter,
-                onClick = { onFilterSelected(chip.filter) },
-                label = {
-                    Text(
-                        text = "${chip.label} (${chip.count})",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        color = if (currentFilter == chip.filter) Color.Black else chip.color
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = chip.color,
-                    containerColor = Color.Transparent
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    borderColor = chip.color.copy(alpha = 0.5f),
-                    enabled = true,
-                    selected = currentFilter == chip.filter
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun PacketCard(packet: HciPacket) {
+private fun PacketRow(packet: HciPacket, startMicros: Long) {
     var expanded by remember { mutableStateOf(false) }
-
-    val accentColor = when {
-        packet.summary.contains("ATT Error") || packet.summary.startsWith("ATT Error") -> TerminalRed
-        packet.packetType == HciPacketType.Command || packet.packetType == HciPacketType.Event -> TerminalAmber
-        packet.isSent -> TerminalCyan
-        else -> TerminalGreen
-    }
-
-    val directionArrow = if (packet.isSent) "\u2192" else "\u2190"
-    val directionLabel = if (packet.isSent) "TX" else "RX"
-
-    // Format timestamp: btsnoop timestamps are microseconds since 0000-01-01
-    // We display relative time as HH:mm:ss.SSS from the raw micros
-    val totalSeconds = packet.timestampMicros / 1_000_000
-    val millis = (packet.timestampMicros % 1_000_000) / 1_000
-    val hours = (totalSeconds / 3600) % 24
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    val timeStr = String.format(Locale.US, "%02d:%02d:%02d.%03d", hours, minutes, seconds, millis)
-
-    TerminalCard {
-        Column(
-            modifier = Modifier
-                .clickable { expanded = !expanded }
-                .padding(10.dp)
-        ) {
-            // Top row: index, direction, type badge, timestamp
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Packet index
-                Text(
-                    text = "#${packet.index}",
-                    color = TerminalGreen.copy(alpha = 0.5f),
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Direction arrow
-                Text(
-                    text = "$directionArrow $directionLabel",
-                    color = accentColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Packet type badge
-                Surface(
-                    color = accentColor.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(3.dp)
-                ) {
-                    Text(
-                        text = packet.packetType.label,
-                        color = accentColor,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Timestamp
-                Text(
-                    text = timeStr,
-                    color = TerminalGreen.copy(alpha = 0.5f),
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Summary line
+    val error = packet.isError()
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(ZdCardShape)
+            .background(ZdColors.Surface)
+            .border(1.dp, if (error) ZdColors.Critical.copy(alpha = 0.4f) else ZdColors.Border, ZdCardShape)
+            .clickable { expanded = !expanded }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(hciOffset(packet.timestampMicros, startMicros), style = ZdType.Path, color = ZdColors.Text3)
+            Text(if (packet.isSent) "→" else "←", style = ZdType.Label, color = if (packet.isSent) ZdColors.Accent else ZdColors.Info)
+            Text(packet.packetType.short, style = ZdType.Label, color = if (error) ZdColors.Critical else ZdColors.Text2, modifier = Modifier.width(34.dp))
             Text(
-                text = packet.summary,
-                color = accentColor.copy(alpha = 0.9f),
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
+                packet.summary,
+                style = ZdType.Caption,
+                color = ZdColors.Text2,
                 maxLines = if (expanded) Int.MAX_VALUE else 2,
                 overflow = TextOverflow.Ellipsis,
-                lineHeight = 15.sp
+                modifier = Modifier.weight(1f)
             )
-
-            // Expanded hex dump
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically()
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Size info
-                    Text(
-                        text = "orig=${packet.originalLength} incl=${packet.includedLength} bytes",
-                        color = TerminalGreen.copy(alpha = 0.4f),
-                        fontSize = 9.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Hex dump
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        val scrollState = rememberScrollState()
-                        Text(
-                            text = packet.data.toHexDump(),
-                            color = TerminalGreen.copy(alpha = 0.7f),
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 13.sp,
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .horizontalScroll(scrollState)
-                        )
-                    }
-                }
-            }
+        }
+        if (expanded) {
+            Text("#${packet.index} · ${packet.includedLength} of ${packet.originalLength} bytes", style = ZdType.Path, color = ZdColors.Text3)
+            Text(
+                packet.data.toHexDump(),
+                style = ZdType.Mono,
+                color = ZdColors.Text2,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(ZdColors.Bg)
+                    .horizontalScroll(rememberScrollState())
+                    .padding(10.dp)
+            )
         }
     }
 }

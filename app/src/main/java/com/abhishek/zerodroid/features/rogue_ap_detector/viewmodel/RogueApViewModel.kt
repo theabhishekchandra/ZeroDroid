@@ -10,6 +10,7 @@ import com.abhishek.zerodroid.features.rogue_ap_detector.domain.RogueApAlert
 import com.abhishek.zerodroid.features.rogue_ap_detector.domain.RogueApAnalyzer
 import com.abhishek.zerodroid.features.rogue_ap_detector.domain.RogueApState
 import com.abhishek.zerodroid.features.wifi.domain.WifiScanner
+import com.abhishek.zerodroid.core.prefs.AppSettings
 import com.abhishek.zerodroid.core.sessions.ItemKind
 import com.abhishek.zerodroid.core.sessions.SessionItem
 import com.abhishek.zerodroid.core.sessions.SessionRepository
@@ -30,6 +31,7 @@ class RogueApViewModel @Inject constructor(
     private val wifiScanner: WifiScanner,
     private val alertCenterRepository: AlertCenterRepository,
     private val sessions: SessionRepository,
+    private val settings: AppSettings,
     private val demoBus: DemoDataBus
 ) : ViewModel() {
 
@@ -39,7 +41,7 @@ class RogueApViewModel @Inject constructor(
 
     private val analyzer = RogueApAnalyzer()
 
-    private val _state = MutableStateFlow(RogueApState())
+    private val _state = MutableStateFlow(RogueApState(knownSsids = settings.trustedNetworks.value))
     val state: StateFlow<RogueApState> = _state.asStateFlow()
 
     private var scanJob: Job? = null
@@ -92,18 +94,17 @@ class RogueApViewModel @Inject constructor(
         _state.value = _state.value.copy(isScanning = false)
     }
 
+    /** Trusted networks are saved in [AppSettings] so they survive leaving the screen. */
     fun addKnownSsid(ssid: String) {
         val trimmed = ssid.trim()
         if (trimmed.isBlank()) return
-        _state.value = _state.value.copy(
-            knownSsids = _state.value.knownSsids + trimmed
-        )
+        settings.setTrustedNetworks(_state.value.knownSsids + trimmed)
+        _state.value = _state.value.copy(knownSsids = settings.trustedNetworks.value)
     }
 
     fun removeKnownSsid(ssid: String) {
-        _state.value = _state.value.copy(
-            knownSsids = _state.value.knownSsids - ssid
-        )
+        settings.setTrustedNetworks(_state.value.knownSsids - ssid)
+        _state.value = _state.value.copy(knownSsids = settings.trustedNetworks.value)
     }
 
     fun clearAlerts() {

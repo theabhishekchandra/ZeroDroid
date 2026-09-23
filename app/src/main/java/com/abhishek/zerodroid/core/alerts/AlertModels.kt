@@ -5,7 +5,9 @@ enum class AlertSource(val label: String) {
     DEAUTH("Deauth Detector"),
     GPS_SPOOF("GPS Spoof"),
     HIDDEN_CAMERA("Hidden Camera"),
-    BLUETOOTH_TRACKER("Tracker Scanner")
+    BLUETOOTH_TRACKER("Tracker Scanner"),
+    CELL("Cell network"),
+    BLE_WATCH("Watch rule")
 }
 
 enum class AlertSeverity { CRITICAL, HIGH, MEDIUM, LOW }

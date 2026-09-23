@@ -28,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
@@ -44,6 +45,7 @@ import com.abhishek.zerodroid.core.ui.zd.ZdChipRow
 import com.abhishek.zerodroid.core.ui.zd.ZdDivider
 import com.abhishek.zerodroid.core.ui.zd.ZdHardwareTag
 import com.abhishek.zerodroid.core.ui.zd.ZdHeader
+import com.abhishek.zerodroid.core.ui.zd.ZdIconButton
 import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
 import com.abhishek.zerodroid.core.ui.zd.ZdIcons
 import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
@@ -62,12 +64,19 @@ import com.abhishek.zerodroid.ui.theme.ZdType
 fun ToolsScreen(
     onOpenTool: (ToolInfo) -> Unit,
     onPinChanged: (ToolInfo, Boolean) -> Unit,
+    onSearch: () -> Unit = {},
+    onSettings: () -> Unit = {},
+    /** On tablets the list sits beside the open tool, which is highlighted here. */
+    selectedRoute: String? = null,
     viewModel: ToolsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
-        ZdHeader(path = "/tools", title = "Tools")
+        ZdHeader(path = "/tools", title = "Tools") {
+            ZdIconButton(ZdIcons.Search, contentDescription = "Search everything", onClick = onSearch)
+            ZdIconButton(ZdIcons.Settings, contentDescription = "Settings", onClick = onSettings)
+        }
 
         Column(
             modifier = Modifier.padding(bottom = 10.dp),
@@ -113,6 +122,7 @@ fun ToolsScreen(
                         section.rows.forEachIndexed { index, row ->
                             ToolListRow(
                                 row = row,
+                                selected = row.tool.route == selectedRoute,
                                 onClick = {
                                     viewModel.onToolOpened(row.tool)
                                     onOpenTool(row.tool)
@@ -207,12 +217,13 @@ private fun ToolSearchField(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ToolListRow(row: ToolRow, onClick: () -> Unit, onLongClick: () -> Unit) {
+private fun ToolListRow(row: ToolRow, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     val tool = row.tool
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
+            .background(if (selected) ZdColors.AccentBg else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .semantics {
                 onLongClick(label = if (row.pinned) "Unpin from Home" else "Pin to Home") { onLongClick(); true }

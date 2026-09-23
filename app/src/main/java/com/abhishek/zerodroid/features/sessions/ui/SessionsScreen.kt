@@ -59,6 +59,7 @@ import com.abhishek.zerodroid.core.debug.DemoDataAction
 import com.abhishek.zerodroid.features.alert_center.domain.AlertTriage
 import com.abhishek.zerodroid.features.alert_center.domain.DayBucket
 import com.abhishek.zerodroid.features.sessions.viewmodel.SessionsViewModel
+import com.abhishek.zerodroid.features.sweep.viewmodel.SweepViewModel
 import com.abhishek.zerodroid.navigation.ToolCatalog
 import com.abhishek.zerodroid.ui.theme.ZdColors
 import com.abhishek.zerodroid.ui.theme.ZdType
@@ -87,6 +88,7 @@ fun SessionsScreen(
 ) {
     val sessions by viewModel.sessions.collectAsState()
     val selected by viewModel.selected.collectAsState()
+    val retentionDays by viewModel.retentionDays.collectAsState()
     val context = LocalContext.current
     var showExport by rememberSaveable { mutableStateOf(false) }
 
@@ -152,7 +154,7 @@ fun SessionsScreen(
                 }
             }
             item {
-                ZdFootnote("Stored only on this phone and kept 30 days. Long-press two sessions to compare them.")
+                ZdFootnote("Stored only on this phone and kept $retentionDays days. Long-press two sessions to compare them.")
             }
         }
     }
@@ -160,6 +162,7 @@ fun SessionsScreen(
     if (showExport) {
         ExportSheet(
             count = selected.size,
+            redactDefault = viewModel.redactDefault,
             onDismiss = { showExport = false },
             onExport = { format, redact ->
                 viewModel.export(selected, format, redact) { uri -> shareExport(context, uri, format) }
@@ -194,7 +197,7 @@ private fun SessionRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ZdIconTile(tool?.icon ?: ZdIcons.Clock)
+        ZdIconTile(tool?.icon ?: if (session.tool == SweepViewModel.SESSION_TOOL) ZdIcons.Sweep else ZdIcons.Clock)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(session.title, style = ZdType.Label, color = ZdColors.Text)
             Text(
@@ -214,11 +217,12 @@ private fun SessionRow(
 @Composable
 fun ExportSheet(
     count: Int,
+    redactDefault: Boolean,
     onDismiss: () -> Unit,
     onExport: (ExportFormat, Boolean) -> Unit
 ) {
     var format by rememberSaveable { mutableStateOf(ExportFormat.PDF) }
-    var redact by rememberSaveable { mutableStateOf(true) }
+    var redact by rememberSaveable { mutableStateOf(redactDefault) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
