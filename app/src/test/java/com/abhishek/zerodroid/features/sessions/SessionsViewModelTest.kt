@@ -1,8 +1,10 @@
 package com.abhishek.zerodroid.features.sessions
 
 import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.prefs.AppSettings
 import com.abhishek.zerodroid.core.sessions.SessionExportService
 import com.abhishek.zerodroid.core.sessions.SessionRepository
+import com.abhishek.zerodroid.core.testing.FakeSharedPreferences
 import com.abhishek.zerodroid.core.testing.MainDispatcherRule
 import com.abhishek.zerodroid.features.sessions.viewmodel.SessionsViewModel
 import io.mockk.every
@@ -21,7 +23,7 @@ class SessionsViewModelTest {
         every { sessions } returns flowOf(emptyList())
     }
 
-    private fun vm() = SessionsViewModel(repo, mockk<SessionExportService>(relaxed = true), DemoDataBus())
+    private fun vm() = SessionsViewModel(repo, mockk<SessionExportService>(relaxed = true), AppSettings(FakeSharedPreferences()), DemoDataBus())
 
     @Test
     fun `selection toggles and keeps at most two, dropping the oldest pick`() {

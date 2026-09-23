@@ -3,6 +3,7 @@ package com.abhishek.zerodroid.features.sessions.viewmodel
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import com.abhishek.zerodroid.core.prefs.AppSettings
 import androidx.lifecycle.viewModelScope
 import com.abhishek.zerodroid.core.debug.DemoData
 import com.abhishek.zerodroid.core.debug.DemoDataBus
@@ -29,8 +30,12 @@ import javax.inject.Inject
 class SessionsViewModel @Inject constructor(
     private val repository: SessionRepository,
     private val exporter: SessionExportService,
+    private val settings: AppSettings,
     demoBus: DemoDataBus
 ) : ViewModel() {
+
+    val redactDefault: Boolean get() = settings.redactExports.value
+    val retentionDays: StateFlow<Int> = settings.retentionDays
 
     val sessions: StateFlow<List<Session>> = repository.sessions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -39,7 +44,7 @@ class SessionsViewModel @Inject constructor(
     val selected: StateFlow<List<String>> = _selected.asStateFlow()
 
     init {
-        viewModelScope.launch { repository.prune() }
+        viewModelScope.launch { repository.prune(settings.retentionMs) }
         observeDemoRequests(demoBus, DemoData.Routes.SESSIONS) { loadDemoData() }
     }
 
@@ -74,8 +79,11 @@ class SessionsViewModel @Inject constructor(
 class SessionDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: SessionRepository,
-    private val exporter: SessionExportService
+    private val exporter: SessionExportService,
+    private val settings: AppSettings
 ) : ViewModel() {
+
+    val redactDefault: Boolean get() = settings.redactExports.value
 
     val id: String = checkNotNull(savedStateHandle["id"])
 

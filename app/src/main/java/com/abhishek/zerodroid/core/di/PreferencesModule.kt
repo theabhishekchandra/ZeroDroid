@@ -14,6 +14,10 @@ import javax.inject.Singleton
 @Retention(AnnotationRetention.BINARY)
 annotation class DashboardPrefs
 
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class SettingsPrefs
+
 @Module
 @InstallIn(SingletonComponent::class)
 object PreferencesModule {
@@ -23,4 +27,10 @@ object PreferencesModule {
     @DashboardPrefs
     fun provideDashboardPrefs(@ApplicationContext context: Context): SharedPreferences =
         context.getSharedPreferences("zerodroid_dashboard", Context.MODE_PRIVATE)
+
+    @Provides
+    @Singleton
+    @SettingsPrefs
+    fun provideSettingsPrefs(@ApplicationContext context: Context): SharedPreferences =
+        context.getSharedPreferences("zerodroid_settings", Context.MODE_PRIVATE)
 }

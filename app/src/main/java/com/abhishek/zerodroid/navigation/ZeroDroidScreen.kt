@@ -13,6 +13,11 @@ sealed class ZeroDroidScreen(
     data object Tools : ZeroDroidScreen("tools", "Tools")
     data object AlertCenter : ZeroDroidScreen("alert_center", "Alerts")
     data object Sessions : ZeroDroidScreen("sessions", "Sessions")
+    data object Sweep : ZeroDroidScreen("sweep", "Sweep")
+
+    // Pushed screens
+    data object Search : ZeroDroidScreen("search", "Search")
+    data object Settings : ZeroDroidScreen("settings", "Settings")
 
     // Tools
     data object Sensors : ZeroDroidScreen("sensors", "Sensor Dashboard")
@@ -48,7 +53,7 @@ sealed class ZeroDroidScreen(
         // Lazy: an eager list here can capture nulls when a subclass object initializes first.
         val all: List<ZeroDroidScreen> by lazy {
             listOf(
-                Dashboard, Tools, AlertCenter, Sessions,
+                Dashboard, Tools, AlertCenter, Sessions, Sweep, Search, Settings,
                 Sensors, Wifi, Ble, Nfc, Ir, Uwb,
                 Usb, Sdr, Camera, Ultrasonic, Wardriving, WifiAware,
                 CellTower, UsbCamera, Gps, BluetoothClassic, WifiDirect, HiddenCamera,
@@ -58,3 +63,7 @@ sealed class ZeroDroidScreen(
         }
     }
 }
+
+/** Route to run a sweep; a blank place is sent as a space because path segments can't be empty. */
+fun sweepRunRoute(preset: com.abhishek.zerodroid.features.sweep.domain.SweepPreset, place: String): String =
+    "sweep/run/${preset.name}/${place.trim().let { if (it.isEmpty()) "%20" else android.net.Uri.encode(it) }}"

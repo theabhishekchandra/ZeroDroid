@@ -44,6 +44,7 @@ import com.abhishek.zerodroid.core.ui.zd.ZdChipRow
 import com.abhishek.zerodroid.core.ui.zd.ZdDivider
 import com.abhishek.zerodroid.core.ui.zd.ZdHardwareTag
 import com.abhishek.zerodroid.core.ui.zd.ZdHeader
+import com.abhishek.zerodroid.core.ui.zd.ZdIconButton
 import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
 import com.abhishek.zerodroid.core.ui.zd.ZdIcons
 import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
@@ -62,12 +63,17 @@ import com.abhishek.zerodroid.ui.theme.ZdType
 fun ToolsScreen(
     onOpenTool: (ToolInfo) -> Unit,
     onPinChanged: (ToolInfo, Boolean) -> Unit,
+    onSearch: () -> Unit = {},
+    onSettings: () -> Unit = {},
     viewModel: ToolsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
-        ZdHeader(path = "/tools", title = "Tools")
+        ZdHeader(path = "/tools", title = "Tools") {
+            ZdIconButton(ZdIcons.Search, contentDescription = "Search everything", onClick = onSearch)
+            ZdIconButton(ZdIcons.Settings, contentDescription = "Settings", onClick = onSettings)
+        }
 
         Column(
             modifier = Modifier.padding(bottom = 10.dp),

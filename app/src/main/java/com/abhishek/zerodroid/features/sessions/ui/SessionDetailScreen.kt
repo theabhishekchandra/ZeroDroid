@@ -108,7 +108,7 @@ fun SessionDetailScreen(
     }
 
     if (showExport) {
-        ExportSheet(count = 1, onDismiss = { showExport = false }, onExport = { format, redact ->
+        ExportSheet(count = 1, redactDefault = viewModel.redactDefault, onDismiss = { showExport = false }, onExport = { format, redact ->
             viewModel.export(format, redact) { uri -> shareExport(context, uri, format) }
             showExport = false
         })

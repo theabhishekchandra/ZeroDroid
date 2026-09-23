@@ -430,6 +430,6 @@ fun ZdDialog(
         title = { Text(title, style = ZdType.Title, color = ZdColors.Text) },
         text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp), content = content) },
         confirmButton = { ZdButton(confirmLabel, onClick = onConfirm, enabled = confirmEnabled) },
-        dismissButton = { ZdButton(dismissLabel, onClick = onDismiss, variant = ZdButtonVariant.Ghost) }
+        dismissButton = { if (dismissLabel.isNotEmpty()) ZdButton(dismissLabel, onClick = onDismiss, variant = ZdButtonVariant.Ghost) }
     )
 }

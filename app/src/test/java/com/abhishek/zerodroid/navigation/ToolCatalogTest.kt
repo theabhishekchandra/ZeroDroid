@@ -13,7 +13,10 @@ class ToolCatalogTest {
 
     @Test
     fun `every tool destination is in the catalog exactly once`() {
-        val topLevel = setOf(ZeroDroidScreen.Dashboard, ZeroDroidScreen.Tools, ZeroDroidScreen.AlertCenter, ZeroDroidScreen.Sessions)
+        val topLevel = setOf(
+            ZeroDroidScreen.Dashboard, ZeroDroidScreen.Tools, ZeroDroidScreen.AlertCenter, ZeroDroidScreen.Sessions,
+            ZeroDroidScreen.Sweep, ZeroDroidScreen.Search, ZeroDroidScreen.Settings
+        )
         val toolScreens = ZeroDroidScreen.all.filterNot { it in topLevel }
 
         assertEquals(28, tools.size)

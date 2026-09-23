@@ -27,7 +27,11 @@ class BleScanner(
         get() = bluetoothManager?.adapter?.isEnabled == true
 
     @SuppressLint("MissingPermission")
-    fun scan(): Flow<List<BleDevice>> = callbackFlow {
+    /**
+     * Scans for [timeoutMs] then closes. [lowLatency] trades battery for a report on every
+     * advertisement, which Locate needs to follow signal strength in real time.
+     */
+    fun scan(lowLatency: Boolean = false, timeoutMs: Long = SCAN_TIMEOUT_MS): Flow<List<BleDevice>> = callbackFlow {
         val leScanner = scanner
         if (leScanner == null) {
             trySend(emptyList())
@@ -63,14 +67,14 @@ class BleScanner(
         }
 
         val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+            .setScanMode(if (lowLatency) ScanSettings.SCAN_MODE_LOW_LATENCY else ScanSettings.SCAN_MODE_LOW_POWER)
             .build()
 
         leScanner.startScan(null, settings, callback)
 
-        // Auto-stop after 30 seconds to save battery
+        // Auto-stop to save battery
         launch {
-            delay(SCAN_TIMEOUT_MS)
+            delay(timeoutMs)
             leScanner.stopScan(callback)
             close()
         }
