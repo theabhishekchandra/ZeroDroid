@@ -7,6 +7,9 @@ import com.abhishek.zerodroid.features.wifi.domain.ChannelAnalyzer
 import com.abhishek.zerodroid.features.wifi.domain.ChannelScore
 import com.abhishek.zerodroid.features.wifi.domain.WifiAccessPoint
 import com.abhishek.zerodroid.features.wifi.domain.WifiScanner
+import com.abhishek.zerodroid.core.debug.DemoData
+import com.abhishek.zerodroid.core.debug.DemoDataBus
+import com.abhishek.zerodroid.core.debug.observeDemoRequests
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -19,7 +22,8 @@ import kotlinx.coroutines.flow.catch
 
 @HiltViewModel
 class WifiViewModel @Inject constructor(
-    private val wifiScanner: WifiScanner
+    private val wifiScanner: WifiScanner,
+    demoBus: DemoDataBus
 ) : ViewModel() {
 
     private val _accessPoints = MutableStateFlow<List<WifiAccessPoint>>(emptyList())
@@ -36,6 +40,18 @@ class WifiViewModel @Inject constructor(
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    init {
+        observeDemoRequests(demoBus, DemoData.Routes.WIFI) { loadDemoData() }
+    }
+
+    /** Debug-only: replaces live state with [DemoData] so the populated UI can be verified without nearby networks. */
+    private fun loadDemoData() {
+        stopScan()
+        _error.value = null
+        _accessPoints.value = DemoData.wifiAccessPoints
+        _channelScores.value = ChannelAnalyzer.analyze(DemoData.wifiAccessPoints)
+    }
 
     private var scanJob: Job? = null
     private var autoStopJob: Job? = null

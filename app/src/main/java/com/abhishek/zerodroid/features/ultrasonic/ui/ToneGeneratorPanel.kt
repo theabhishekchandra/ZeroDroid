@@ -4,14 +4,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -23,13 +18,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdChip
+import com.abhishek.zerodroid.core.ui.zd.ZdChipRow
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
 import com.abhishek.zerodroid.features.ultrasonic.domain.ToneGenerator
-import com.abhishek.zerodroid.ui.theme.TerminalAmber
-import com.abhishek.zerodroid.ui.theme.TerminalCyan
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
 import com.abhishek.zerodroid.ui.theme.TerminalGreen
 import com.abhishek.zerodroid.ui.theme.TerminalGreenDark
-import com.abhishek.zerodroid.ui.theme.TerminalRed
 
 @Composable
 fun ToneGeneratorPanel(
@@ -37,65 +37,52 @@ fun ToneGeneratorPanel(
     onFrequencyChange: (Int) -> Unit, onPlay: () -> Unit, onStop: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        TerminalCard {
-            Text(text = "> Tone Generator", style = MaterialTheme.typography.labelSmall, color = TerminalCyan)
-            Spacer(modifier = Modifier.height(8.dp))
-
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ZdCard(verticalSpacing = 8.dp) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.Bottom) {
-                Text(text = "%,d".format(frequency), style = MaterialTheme.typography.displayLarge,
-                    color = if (isPlaying) TerminalGreen else MaterialTheme.colorScheme.onSurface)
-                Text(text = " Hz", style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
+                Text("%,d".format(frequency), style = ZdType.Display, color = if (isPlaying) ZdColors.Accent else ZdColors.Text)
+                Text(" Hz", style = ZdType.Label, color = ZdColors.Text3, modifier = Modifier.padding(bottom = 6.dp))
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = frequencyDescription(frequency), style = MaterialTheme.typography.labelSmall,
-                color = TerminalAmber, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Spacer(modifier = Modifier.height(12.dp))
-
+            Text(
+                frequencyDescription(frequency),
+                style = ZdType.Caption,
+                color = ZdColors.Text3,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
             Slider(
                 value = frequency.toFloat(),
                 onValueChange = { onFrequencyChange(it.toInt()) },
                 valueRange = ToneGenerator.MIN_FREQUENCY.toFloat()..ToneGenerator.MAX_FREQUENCY.toFloat(),
                 steps = 59,
-                colors = SliderDefaults.colors(thumbColor = TerminalGreen, activeTrackColor = TerminalGreen,
-                    inactiveTrackColor = TerminalGreenDark),
+                colors = SliderDefaults.colors(
+                    thumbColor = ZdColors.Accent,
+                    activeTrackColor = ZdColors.Accent,
+                    inactiveTrackColor = ZdColors.Surface3,
+                    activeTickColor = ZdColors.Accent,
+                    inactiveTickColor = ZdColors.BorderStrong
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("18 kHz", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("21 kHz", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("24 kHz", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(text = "Presets:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(18000, 19000, 20000, 21000, 22000).forEach { preset ->
-                    OutlinedButton(onClick = { onFrequencyChange(preset) },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = if (frequency == preset) TerminalGreen else MaterialTheme.colorScheme.onSurfaceVariant),
-                        modifier = Modifier.weight(1f)
-                    ) { Text("${preset / 1000}k", style = MaterialTheme.typography.labelSmall) }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            if (isPlaying) {
-                Button(onClick = onStop, colors = ButtonDefaults.buttonColors(containerColor = TerminalRed), modifier = Modifier.fillMaxWidth())
-                { Text("Stop Transmission") }
-            } else {
-                Button(onClick = onPlay, colors = ButtonDefaults.buttonColors(containerColor = TerminalGreen), modifier = Modifier.fillMaxWidth())
-                { Text("Start Transmission", color = MaterialTheme.colorScheme.surface) }
+                Text("${ToneGenerator.MIN_FREQUENCY / 1000} kHz", style = ZdType.Path, color = ZdColors.Text3)
+                Text("${ToneGenerator.MAX_FREQUENCY / 1000} kHz", style = ZdType.Path, color = ZdColors.Text3)
             }
         }
-
-        // Waveform preview
-        TerminalCard {
-            Text(text = "> Waveform Preview", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(4.dp))
+        ZdChipRow(contentPadding = 0.dp) {
+            listOf(18000, 19000, 20000, 21000, 22000).forEach { preset ->
+                ZdChip("${preset / 1000} kHz", selected = frequency == preset, onClick = { onFrequencyChange(preset) })
+            }
+        }
+        ZdCard {
+            Text("Waveform", style = ZdType.Label, color = ZdColors.Text2)
             WaveformPreview(isPlaying = isPlaying, modifier = Modifier.fillMaxWidth().height(100.dp))
         }
+        if (isPlaying) {
+            ZdButton("Stop tone", onClick = onStop, variant = ZdButtonVariant.Danger, icon = ZdIcons.Stop, modifier = Modifier.fillMaxWidth())
+        } else {
+            ZdButton("Play tone", onClick = onPlay, icon = ZdIcons.Play, modifier = Modifier.fillMaxWidth())
+        }
+        ZdFootnote("Use this to test whether another device’s microphone picks up ultrasound. Keep the volume low: pets can hear it.")
     }
 }
 

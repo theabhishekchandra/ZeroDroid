@@ -2,7 +2,6 @@ package com.abhishek.zerodroid.features.emf_mapper.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,18 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Sensors
-import androidx.compose.material.icons.filled.SensorsOff
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -51,8 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
-import com.abhishek.zerodroid.core.ui.EmptyState
-import com.abhishek.zerodroid.core.ui.ScanningIndicator
 import com.abhishek.zerodroid.core.ui.TerminalCard
 import com.abhishek.zerodroid.features.emf_mapper.domain.EmfLevel
 import com.abhishek.zerodroid.features.emf_mapper.domain.EmfMapperState
@@ -67,6 +53,23 @@ import com.abhishek.zerodroid.ui.theme.TextPrimary
 import com.abhishek.zerodroid.ui.theme.TextSecondary
 import kotlin.math.cos
 import kotlin.math.sin
+import androidx.compose.foundation.layout.PaddingValues
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdCheckRow
+import com.abhishek.zerodroid.core.ui.zd.ZdCheckStatus
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdMetric
+import com.abhishek.zerodroid.core.ui.zd.ZdScanControlBar
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
+import com.abhishek.zerodroid.core.ui.zd.formatElapsed
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
+import java.util.Locale
 
 @Composable
 fun EmfMapperScreen(
@@ -90,78 +93,69 @@ fun EmfMapperScreen(
 
 @Composable
 private fun SensorUnavailableContent() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        EmptyState(
-            icon = Icons.Default.SensorsOff,
-            title = "Magnetometer unavailable",
-            subtitle = "This device does not have a magnetometer sensor required for EMF mapping"
-        )
-    }
+    ZdStatePanel(
+        kicker = "Not on this phone",
+        icon = ZdIcons.Magnet,
+        title = "Your phone has no magnetometer",
+        body = "EMF mapping reads the magnetic field sensor, the same one the compass uses. This phone doesn’t report one."
+    )
 }
 
 @Composable
 private fun EmfMapperContent(state: EmfMapperState, viewModel: EmfMapperViewModel) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item { Spacer(modifier = Modifier.height(4.dp)) }
-
-        // 1. Live EMF Gauge
-        item { EmfGauge(state.currentReading) }
-
-        // 2. Recording timer
-        if (state.isRecording) {
-            item { RecordingTimer(state.recordingDurationMs) }
-        }
-
-        // 3. Record controls
-        item { RecordControls(state, viewModel) }
-
-        // 4. Statistics card
-        if (state.currentReading != null) {
-            item { StatisticsCard(state) }
-        }
-
-        // 5. 3-axis readout
-        if (state.currentReading != null) {
-            item { AxisReadout(state.currentReading!!) }
-        }
-
-        // 6. History graph
-        if (state.history.isNotEmpty()) {
-            item { HistoryGraph(state.history) }
-        }
-
-        // 7. Instructions
-        if (!state.isRecording && state.history.isEmpty()) {
-            item { InstructionsCard() }
-        }
-
-        // Error display
-        state.error?.let { error ->
+    Column(Modifier.fillMaxSize()) {
+        ZdScanControlBar(
+            running = state.isRecording,
+            onStart = viewModel::startRecording,
+            onStop = viewModel::stopRecording,
+            runningLabel = "Mapping · ${formatElapsed(state.recordingDurationMs)}",
+            runningDetail = "${state.history.size} readings · ${state.hotspots} hotspots",
+            idleDetail = if (state.history.isEmpty()) "Start away from metal to set a baseline" else "Readings kept",
+            startLabel = "Record"
+        )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item { EmfGauge(state.currentReading) }
+            if (state.currentReading != null) {
+                item {
+                    ZdCard {
+                        Row {
+                            ZdMetric(if (state.minMagnitude == Float.MAX_VALUE) "—" else "%.1f".format(Locale.US, state.minMagnitude), "Min µT", Modifier.weight(1f))
+                            ZdMetric("%.1f".format(Locale.US, state.peakMagnitude), "Max µT", Modifier.weight(1f))
+                            ZdMetric("%.1f".format(Locale.US, state.avgMagnitude), "Avg µT", Modifier.weight(1f))
+                            ZdMetric("${state.hotspots}", "Hotspots", Modifier.weight(1f), valueColor = if (state.hotspots > 0) ZdColors.Medium else ZdColors.Text)
+                        }
+                        Text("Baseline %.1f µT".format(Locale.US, state.baseline), style = ZdType.Caption, color = ZdColors.Text3)
+                    }
+                }
+                item { AxisReadout(state.currentReading) }
+            }
+            if (state.history.isNotEmpty()) {
+                item { HistoryGraph(state.history) }
+            }
             item {
-                TerminalCard(glowColor = TerminalRed, borderColor = TerminalRed) {
-                    Text(
-                        text = "> ERROR: $error",
-                        color = TerminalRed,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(12.dp)
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ZdButton("Re-zero", onClick = viewModel::resetBaseline, variant = ZdButtonVariant.Secondary, icon = ZdIcons.Refresh, modifier = Modifier.weight(1f))
+                    ZdButton("Clear", onClick = viewModel::clearHistory, variant = ZdButtonVariant.Ghost, icon = ZdIcons.Trash, enabled = state.history.isNotEmpty(), modifier = Modifier.weight(1f))
                 }
             }
+            item { ZdSectionLabel("Reading the field") }
+            item {
+                ZdListCard(
+                    listOf(
+                        Triple("Normal", "25–65 µT, Earth’s own field", ZdCheckStatus.PASS),
+                        Triple("Elevated", "More than 15 µT above baseline: nearby electronics", ZdCheckStatus.WARN),
+                        Triple("High", "More than 40 µT above: wiring, motors, speakers", ZdCheckStatus.WARN),
+                        Triple("Extreme", "More than 100 µT above: a magnet very close", ZdCheckStatus.FAIL)
+                    )
+                ) { (title, detail, status) -> ZdCheckRow(title = title, detail = detail, status = status) }
+            }
+            state.error?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
+            item { ZdFootnote("Move the top of the phone slowly along walls and objects: the magnetometer sits near the top edge on most phones.") }
         }
-
-        item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
@@ -387,215 +381,6 @@ private fun EmfGauge(reading: EmfReading?) {
 }
 
 // ---------------------------------------------------------------------------
-// Recording timer
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun RecordingTimer(durationMs: Long) {
-    val totalSeconds = (durationMs / 1000).toInt()
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    val timeStr = "%02d:%02d".format(minutes, seconds)
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ScanningIndicator(isScanning = true, label = "", color = TerminalRed)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "Recording: $timeStr",
-            color = TerminalRed,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp
-        )
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Record controls
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun RecordControls(state: EmfMapperState, viewModel: EmfMapperViewModel) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Start/Stop button -- kept on its own full-width row since it's the primary action
-        // and its label ("RECORD"/"STOP") must never be squeezed narrow enough to wrap.
-        Button(
-            onClick = {
-                if (state.isRecording) viewModel.stopRecording() else viewModel.startRecording()
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (state.isRecording) TerminalRed else TerminalGreen
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(
-                imageVector = if (state.isRecording) Icons.Default.Stop else Icons.Default.PlayArrow,
-                contentDescription = null,
-                tint = Color.Black
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (state.isRecording) "STOP" else "RECORD",
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                maxLines = 1
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Reset baseline
-            OutlinedButton(
-                onClick = { viewModel.resetBaseline() },
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = TerminalAmber),
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Reset baseline",
-                    tint = TerminalAmber
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "RESET",
-                    color = TerminalAmber,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    maxLines = 1
-                )
-            }
-
-            // Clear history
-            if (state.history.isNotEmpty()) {
-                OutlinedButton(
-                    onClick = { viewModel.clearHistory() },
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Clear history",
-                        tint = TextSecondary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "CLEAR",
-                        color = TextSecondary,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Statistics card
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun StatisticsCard(state: EmfMapperState) {
-    TerminalCard {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "> Statistics",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Row 1: Baseline | Current | Peak
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                StatItem(label = "BASELINE", value = "%.1f".format(state.baseline), unit = "\u00B5T")
-                StatItem(
-                    label = "CURRENT",
-                    value = "%.1f".format(state.currentReading?.magnitude ?: 0f),
-                    unit = "\u00B5T",
-                    valueColor = levelColor(state.currentReading?.level ?: EmfLevel.NORMAL)
-                )
-                StatItem(label = "PEAK", value = "%.1f".format(state.peakMagnitude), unit = "\u00B5T", valueColor = TerminalRed)
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Row 2: Min | Avg | Hotspots
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                StatItem(
-                    label = "MIN",
-                    value = if (state.minMagnitude == Float.MAX_VALUE) "--" else "%.1f".format(state.minMagnitude),
-                    unit = "\u00B5T"
-                )
-                StatItem(label = "AVG", value = "%.1f".format(state.avgMagnitude), unit = "\u00B5T")
-                StatItem(
-                    label = "HOTSPOTS",
-                    value = state.hotspots.toString(),
-                    unit = "",
-                    valueColor = if (state.hotspots > 0) TerminalRed else TerminalGreen
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatItem(
-    label: String,
-    value: String,
-    unit: String,
-    valueColor: Color = TextPrimary
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = label,
-            color = TextSecondary,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 10.sp
-        )
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                text = value,
-                color = valueColor,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-            if (unit.isNotEmpty()) {
-                Spacer(modifier = Modifier.width(2.dp))
-                Text(
-                    text = unit,
-                    color = TextSecondary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(bottom = 2.dp)
-                )
-            }
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
 // 3-axis readout
 // ---------------------------------------------------------------------------
 
@@ -813,72 +598,6 @@ private fun HistoryGraph(history: List<EmfReading>) {
 }
 
 // ---------------------------------------------------------------------------
-// Instructions card
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun InstructionsCard() {
-    TerminalCard {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "> Instructions",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Slowly move your phone near walls, outlets, and objects. Spikes indicate electronic devices, wiring, or magnetic sources.",
-                color = TextSecondary,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                lineHeight = 18.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                LegendItem(color = TerminalGreen, label = "NORMAL", desc = "25-65 \u00B5T (Earth's field)")
-                LegendItem(color = TerminalAmber, label = "ELEVATED", desc = ">15 \u00B5T deviation")
-                LegendItem(color = TerminalRed, label = "HIGH", desc = ">40 \u00B5T deviation")
-                LegendItem(color = TerminalRed, label = "EXTREME", desc = ">100 \u00B5T deviation")
-            }
-        }
-    }
-}
-
-@Composable
-private fun LegendItem(color: Color, label: String, desc: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .width(8.dp)
-                .height(8.dp)
-                .background(color, RoundedCornerShape(2.dp))
-        )
-        Text(
-            text = "$label:",
-            color = color,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp
-        )
-        Text(
-            text = desc,
-            color = TextSecondary,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp
-        )
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -886,7 +605,7 @@ private fun levelColor(level: EmfLevel): Color {
     return when (level) {
         EmfLevel.NORMAL -> TerminalGreen
         EmfLevel.ELEVATED -> TerminalAmber
-        EmfLevel.HIGH -> TerminalRed
+        EmfLevel.HIGH -> ZdColors.High
         EmfLevel.EXTREME -> TerminalRed
     }
 }

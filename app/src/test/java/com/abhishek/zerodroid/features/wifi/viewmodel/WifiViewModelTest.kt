@@ -18,6 +18,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import com.abhishek.zerodroid.core.debug.DemoDataBus
 
 class WifiViewModelTest {
 
@@ -32,7 +33,7 @@ class WifiViewModelTest {
     @Test
     fun `startScan publishes access points and channel scores`() {
         every { scanner.scan() } returns flowOf(listOf(ap("A"), ap("B", freq = 5180)))
-        val vm = WifiViewModel(scanner)
+        val vm = WifiViewModel(scanner, DemoDataBus())
 
         vm.startScan()
 
@@ -44,7 +45,7 @@ class WifiViewModelTest {
     @Test
     fun `stopScan clears the scanning flag but keeps results`() {
         every { scanner.scan() } returns flowOf(listOf(ap("A")))
-        val vm = WifiViewModel(scanner)
+        val vm = WifiViewModel(scanner, DemoDataBus())
         vm.startScan()
 
         vm.stopScan()
@@ -57,7 +58,7 @@ class WifiViewModelTest {
     fun `startScan is ignored while a scan is already running`() {
         val live = MutableSharedFlow<List<WifiAccessPoint>>()
         every { scanner.scan() } returns live
-        val vm = WifiViewModel(scanner)
+        val vm = WifiViewModel(scanner, DemoDataBus())
 
         vm.startScan()
         vm.startScan()
@@ -68,7 +69,7 @@ class WifiViewModelTest {
     @Test
     fun `scan auto-stops after thirty seconds`() = runTest(mainRule.dispatcher) {
         every { scanner.scan() } returns MutableSharedFlow()
-        val vm = WifiViewModel(scanner)
+        val vm = WifiViewModel(scanner, DemoDataBus())
         vm.startScan()
 
         advanceTimeBy(29_999); runCurrent()
@@ -79,7 +80,7 @@ class WifiViewModelTest {
 
     @Test
     fun `band selection is independent of scanning`() {
-        val vm = WifiViewModel(scanner)
+        val vm = WifiViewModel(scanner, DemoDataBus())
         assertNull(vm.selectedBand.value)
 
         vm.selectBand(WifiBand.BAND_5GHZ)

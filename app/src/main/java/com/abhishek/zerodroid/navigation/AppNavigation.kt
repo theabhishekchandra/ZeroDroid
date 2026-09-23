@@ -1,5 +1,7 @@
 package com.abhishek.zerodroid.navigation
 
+import android.net.Uri
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
@@ -187,7 +189,11 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
 
             tool(ZeroDroidScreen.Sensors, navController) { SensorScreen() }
             tool(ZeroDroidScreen.Wifi, navController) { WifiScreen() }
-            tool(ZeroDroidScreen.Ble, navController) { BleScreen() }
+            tool(ZeroDroidScreen.Ble, navController) {
+                BleScreen(onOpenDevice = { address, name ->
+                    navController.navigate("gatt_explorer/${Uri.encode(address)}/${Uri.encode(name ?: "")}")
+                })
+            }
             tool(ZeroDroidScreen.Nfc, navController) { NfcScreen() }
             tool(ZeroDroidScreen.Ir, navController) { IrScreen() }
             tool(ZeroDroidScreen.Uwb, navController) { UwbScreen() }
@@ -214,7 +220,6 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
             tool(ZeroDroidScreen.EmfMapper, navController) { EmfMapperScreen() }
             tool(ZeroDroidScreen.SignalLogger, navController) { SignalLoggerScreen() }
 
-            // Sub-screens draw their own header
             composable(
                 route = "gatt_explorer/{address}/{name}",
                 arguments = listOf(
@@ -223,12 +228,19 @@ fun AppNavigation(shell: AppShellViewModel = hiltViewModel()) {
                 )
             ) { backStackEntry ->
                 val address = backStackEntry.arguments?.getString("address") ?: return@composable
-                val name = backStackEntry.arguments?.getString("name")
-                GattExplorerScreen(
-                    deviceAddress = address,
-                    deviceName = name,
-                    onBack = { navController.popBackStack() }
-                )
+                val name = backStackEntry.arguments?.getString("name")?.takeIf { it.isNotBlank() }
+                val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+                Column(Modifier.fillMaxSize()) {
+                    ZdHeader(
+                        path = "/tools/ble/${(name ?: address).lowercase().replace(' ', '-')}",
+                        title = "GATT Explorer",
+                        // Routed through the dispatcher so an open characteristic closes first.
+                        onBack = { backDispatcher?.onBackPressed() }
+                    )
+                    Box(Modifier.weight(1f)) {
+                        GattExplorerScreen(deviceAddress = address, deviceName = name)
+                    }
+                }
             }
         }
     }

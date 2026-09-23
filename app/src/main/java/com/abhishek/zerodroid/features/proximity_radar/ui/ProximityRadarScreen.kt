@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,26 +20,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Radar
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.TextStyle
@@ -54,11 +44,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
-import com.abhishek.zerodroid.core.ui.EmptyState
-import com.abhishek.zerodroid.core.ui.ScanningIndicator
-import com.abhishek.zerodroid.core.ui.TerminalCard
 import com.abhishek.zerodroid.features.proximity_radar.domain.DeviceCategory
-import com.abhishek.zerodroid.features.proximity_radar.domain.RadarDevice
 import com.abhishek.zerodroid.features.proximity_radar.domain.RadarState
 import com.abhishek.zerodroid.features.proximity_radar.viewmodel.ProximityRadarViewModel
 import com.abhishek.zerodroid.ui.theme.BackgroundDark
@@ -67,11 +53,24 @@ import com.abhishek.zerodroid.ui.theme.TerminalAmber
 import com.abhishek.zerodroid.ui.theme.TerminalCyan
 import com.abhishek.zerodroid.ui.theme.TerminalGreen
 import com.abhishek.zerodroid.ui.theme.TerminalGreenDim
-import com.abhishek.zerodroid.ui.theme.TextDim
-import com.abhishek.zerodroid.ui.theme.TextSecondary
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdListRow
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdSignal
+import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
+import com.abhishek.zerodroid.core.ui.zd.ZdTag
+import com.abhishek.zerodroid.core.ui.zd.ZdToolScanBar
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.text.style.TextAlign
+import java.util.Locale
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -105,116 +104,71 @@ private fun ProximityRadarContent(viewModel: ProximityRadarViewModel) {
         onResume = viewModel::startScan
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // -- Top controls --------------------------------------------------------
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            ScanControlBar(
-                state = state,
-                onToggleScan = { viewModel.toggleScan() }
-            )
-        }
+    Column(Modifier.fillMaxSize()) {
+        ZdToolScanBar(
+            running = state.isScanning,
+            onStart = viewModel::startScan,
+            onStop = viewModel::stopScan,
+            runningNote = "BLE + WiFi · ${state.devices.size} devices",
+            idleNote = if (state.devices.isEmpty()) "Hold the phone still while it runs" else "Results kept"
+        )
 
-        // -- Error ---------------------------------------------------------------
-        state.error?.let { error ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            state.error?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
+            item { RadarView(state = state) }
             item {
-                Text(
-                    text = error,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.error
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ZdTag("BLE ${state.bleCount}", color = ZdColors.Info, background = ZdColors.InfoBg, border = ZdColors.InfoBorder)
+                    ZdTag("WiFi ${state.wifiCount}", color = ZdColors.Accent, background = ZdColors.AccentBg, border = ZdColors.AccentBorder)
+                    Text("scale ${state.scanRadius.toInt()} m", style = ZdType.Path, color = ZdColors.Text3, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                }
             }
-        }
-
-        // -- Radar ---------------------------------------------------------------
-        item {
-            RadarView(state = state)
-        }
-
-        // -- Device count summary ------------------------------------------------
-        item {
-            DeviceCountSummary(state = state)
-        }
-
-        // -- Nearest device highlight --------------------------------------------
-        state.nearestDevice?.let { nearest ->
-            item {
-                NearestDeviceCard(device = nearest)
+            if (state.devices.isEmpty()) {
+                item {
+                    ZdStatePanel(
+                        kicker = if (state.isScanning) "Scanning" else "Ready",
+                        icon = ZdIcons.Sweep,
+                        iconTint = ZdColors.Accent,
+                        iconBackground = ZdColors.AccentBg,
+                        title = "What’s close to you right now?",
+                        body = "Plots nearby WiFi and Bluetooth devices by estimated distance. The closer to the centre, the stronger the signal.",
+                        primaryAction = if (state.isScanning) null else "Start scan" to viewModel::startScan,
+                        primaryIcon = ZdIcons.Play,
+                        fullScreen = false
+                    )
+                }
+            } else {
+                item { ZdSectionLabel("Closest", trailingText = "${state.devices.size}") }
+                item {
+                    ZdListCard(state.devices.sortedBy { it.estimatedDistanceM }) { device ->
+                        ZdListRow(
+                            title = device.name,
+                            subtitle = "${device.category.label()} · ~${formatMeters(device.estimatedDistanceM)}",
+                            leading = { ZdSignal(device.rssi) },
+                            trailing = if (device.id == state.nearestDevice?.id) {
+                                { ZdTag("NEAREST", color = ZdColors.Accent, background = ZdColors.AccentBg, border = ZdColors.AccentBorder) }
+                            } else null
+                        )
+                    }
+                }
             }
+            item { ZdFootnote("Angles are fixed per device so dots don’t jump; only distance is measured.") }
         }
-
-        // -- Empty state ---------------------------------------------------------
-        if (state.devices.isEmpty() && !state.isScanning) {
-            item {
-                EmptyState(
-                    icon = Icons.Default.Radar,
-                    title = "No devices detected",
-                    subtitle = "Tap Scan to search for nearby WiFi and Bluetooth devices"
-                )
-            }
-        }
-
-        // -- Device list ---------------------------------------------------------
-        items(state.devices, key = { it.id }) { device ->
-            DeviceListItem(
-                device = device,
-                isNearest = device.id == state.nearestDevice?.id
-            )
-        }
-
-        item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Scan control bar
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun ScanControlBar(state: RadarState, onToggleScan: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (state.isScanning) {
-            ScanningIndicator(
-                isScanning = true,
-                label = "${state.devices.size} devices detected"
-            )
-        } else {
-            Text(
-                text = "> ${state.devices.size} devices detected",
-                style = MaterialTheme.typography.labelLarge.copy(fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        if (state.isScanning) {
-            OutlinedButton(
-                onClick = onToggleScan,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text("Stop", fontFamily = FontFamily.Monospace)
-            }
-        } else {
-            Button(
-                onClick = onToggleScan,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Text("Scan", fontFamily = FontFamily.Monospace)
-            }
-        }
-    }
+private fun DeviceCategory.label(): String = when (this) {
+    DeviceCategory.WIFI_AP -> "WiFi"
+    DeviceCategory.BLE_DEVICE -> "BLE"
+    DeviceCategory.BLE_BEACON -> "Beacon"
+    DeviceCategory.UNKNOWN -> "Unknown"
 }
+
+private fun formatMeters(m: Float): String = if (m < 10f) String.format(Locale.US, "%.1f m", m) else "${m.toInt()} m"
 
 // ---------------------------------------------------------------------------
 // Radar Canvas view
@@ -247,7 +201,7 @@ private fun RadarView(state: RadarState) {
 
     val textMeasurer = rememberTextMeasurer()
 
-    TerminalCard {
+    ZdCard(contentPadding = PaddingValues(10.dp)) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -427,206 +381,3 @@ private fun RadarView(state: RadarState) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Device count summary
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun DeviceCountSummary(state: RadarState) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        CountBadge(label = "WiFi", count = state.wifiCount, color = TerminalCyan)
-        CountBadge(label = "BLE", count = state.bleCount, color = TerminalGreen)
-        CountBadge(label = "Total", count = state.devices.size, color = TerminalAmber)
-    }
-}
-
-@Composable
-private fun CountBadge(label: String, count: Int, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = "$count",
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold
-            ),
-            color = color
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-            color = TextSecondary
-        )
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Nearest device highlight card
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun NearestDeviceCard(device: RadarDevice) {
-    val distColor = if (device.estimatedDistanceM < 2f) TerminalAmber else TerminalGreen
-
-    TerminalCard(animated = true, glowColor = distColor) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(
-                    text = "> NEAREST DEVICE",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                    color = distColor
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = device.name,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "~${"%.1f".format(device.estimatedDistanceM)}m",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = distColor
-                )
-                Text(
-                    text = "${device.rssi} dBm",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                    color = TextSecondary
-                )
-            }
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Device list item
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun DeviceListItem(device: RadarDevice, isNearest: Boolean) {
-    val categoryColor = when (device.category) {
-        DeviceCategory.WIFI_AP -> TerminalCyan
-        DeviceCategory.BLE_BEACON -> TerminalAmber
-        else -> TerminalGreen
-    }
-    val distColor = if (device.estimatedDistanceM < 2f) TerminalAmber else categoryColor
-    val categoryLabel = when (device.category) {
-        DeviceCategory.WIFI_AP -> "WiFi"
-        DeviceCategory.BLE_DEVICE -> "BLE"
-        DeviceCategory.BLE_BEACON -> "Beacon"
-        DeviceCategory.UNKNOWN -> "???"
-    }
-
-    TerminalCard(
-        glowColor = if (isNearest) distColor else TerminalGreen,
-        animated = isNearest
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Category badge
-            Box(
-                modifier = Modifier
-                    .background(categoryColor.copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = categoryLabel,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = categoryColor
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Name + ID
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = device.name,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
-                )
-                Text(
-                    text = device.id,
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                    color = TextDim,
-                    maxLines = 1
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Distance + RSSI
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "~${"%.1f".format(device.estimatedDistanceM)}m",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = distColor
-                )
-                Text(
-                    text = "${device.rssi} dBm",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                    color = TextSecondary
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Signal strength bar
-            SignalBar(percent = device.signalPercent, color = categoryColor)
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Signal strength bar
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun SignalBar(percent: Int, color: Color) {
-    val barCount = 5
-    val filledBars = (percent / 20).coerceIn(0, barCount)
-
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        repeat(barCount) { index ->
-            val barHeight = (6 + index * 4).dp
-            val isFilled = index < filledBars
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(barHeight)
-                    .background(
-                        if (isFilled) color else color.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(1.dp)
-                    )
-            )
-        }
-    }
-}

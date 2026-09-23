@@ -1,19 +1,13 @@
 package com.abhishek.zerodroid.features.uwb.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -25,12 +19,25 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
-import com.abhishek.zerodroid.core.ui.StatusIndicator
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdCheckRow
+import com.abhishek.zerodroid.core.ui.zd.ZdCheckStatus
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdScanControlBar
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdStat
+import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
+import com.abhishek.zerodroid.core.ui.zd.ZdTextField
 import com.abhishek.zerodroid.features.uwb.domain.UwbRole
 import com.abhishek.zerodroid.features.uwb.domain.UwbState
 import com.abhishek.zerodroid.features.uwb.viewmodel.UwbViewModel
-import com.abhishek.zerodroid.ui.theme.TerminalRed
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
+import java.util.Locale
 
 @Composable
 fun UwbScreen(
@@ -38,7 +45,7 @@ fun UwbScreen(
 ) {
     PermissionGate(
         permissions = PermissionUtils.uwbPermissions(),
-        rationale = "UWB ranging permission is needed to range with nearby UWB devices."
+        rationale = "Ultra-wideband ranging is gated by Android’s nearby-devices permission."
     ) {
         UwbContent(viewModel = viewModel)
     }
@@ -55,210 +62,101 @@ private fun UwbContent(viewModel: UwbViewModel) {
         resumeOnForeground = false
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            StatusIndicator(isAvailable = state.isHardwareAvailable)
-        }
-
-        if (!state.isHardwareAvailable) {
-            item {
-                TerminalCard {
-                    Text(
-                        text = "> UWB hardware not detected",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Ultra-Wideband requires specific hardware support (e.g., Google Pixel 6 Pro+, Samsung Galaxy S21+)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
-        state.deviceInfo?.let { info ->
-            item { UwbCapabilitiesCard(info = info) }
-        }
-
-        if (state.isHardwareAvailable) {
-            item {
-                TerminalCard {
-                    Text(
-                        text = "> Ranging Radar",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    UwbRangingView(measurement = state.measurement)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Ranging needs a peer UWB device also running this screen. " +
-                            "There is no auto-discovery - pick a role below, then copy the " +
-                            "session values between the two devices by hand.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (state.isRanging) {
-                        RangingActiveContent(state = state, onStop = viewModel::stopRanging)
-                    } else {
-                        RoleSetupContent(viewModel = viewModel)
-                    }
-
-                    state.statusMessage?.let { msg ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "> $msg",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    state.error?.let { err ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "! $err",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TerminalRed
-                        )
-                    }
-                }
-            }
-        }
-
-        item { Spacer(modifier = Modifier.height(16.dp)) }
+    if (!state.isHardwareAvailable) {
+        ZdStatePanel(
+            kicker = "Not on this phone",
+            icon = ZdIcons.Sweep,
+            title = "Your phone has no UWB chip",
+            body = "Ultra-wideband times radio pulses to within a nanosecond to measure distance to about 10 cm. Only some phones carry the chip, such as recent Pixel Pro and Galaxy Ultra models.",
+            note = "AirTags use Apple’s own UWB protocol, which Android can’t range with even on UWB phones."
+        )
+        return
     }
-}
 
-@Composable
-private fun RoleSetupContent(viewModel: UwbViewModel) {
-    val state by viewModel.state.collectAsState()
+    Column(Modifier.fillMaxSize()) {
+        ZdScanControlBar(
+            running = state.isRanging,
+            onStart = viewModel::startAsController,
+            onStop = viewModel::stopRanging,
+            runningLabel = "Ranging · ${if (state.role == UwbRole.CONTROLLER) "controller" else "controlee"}",
+            runningDetail = state.statusMessage ?: state.localSession?.let { "Session ${it.sessionId} · ch ${it.channel}" },
+            idleLabel = "Not ranging",
+            idleDetail = "Needs a second UWB phone running ZeroDroid",
+            startLabel = "Controller"
+        )
 
-    Text(
-        text = "Controller (has a fixed session, shares it) or Controlee (enters the controller's session)?",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-
-    OutlinedTextField(
-        value = state.peerAddressInput,
-        onValueChange = viewModel::updatePeerAddressInput,
-        label = { Text("Peer UWB address (hex)") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(
-            onClick = viewModel::startAsController,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Start as Controller")
+            item {
+                ZdCard {
+                    UwbRangingView(measurement = state.measurement)
+                    val m = state.measurement
+                    Row {
+                        ZdStat("Distance", m?.distanceMeters?.let { "%.2f m".format(Locale.US, it) } ?: "—", Modifier.weight(1f), valueColor = ZdColors.Accent)
+                        ZdStat("Azimuth", m?.azimuthDegrees?.let { "%.0f°".format(Locale.US, it) } ?: "—", Modifier.weight(1f))
+                        ZdStat("Elevation", m?.elevationDegrees?.let { "%.0f°".format(Locale.US, it) } ?: "—", Modifier.weight(1f))
+                    }
+                }
+            }
+            if (state.isRanging) {
+                item { SessionCard(state) }
+            } else {
+                item { SetupCard(state, viewModel) }
+            }
+            state.error?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
+            state.deviceInfo?.let { info ->
+                item { ZdSectionLabel("This phone’s UWB") }
+                item {
+                    ZdListCard(listOf("UWB chip: ${info.chipset}") + info.capabilities) { cap ->
+                        ZdCheckRow(title = cap, status = ZdCheckStatus.PASS)
+                    }
+                }
+            }
+            item { ZdFootnote("There’s no auto-discovery: one phone starts as controller and shows its session, the other types it in as controlee.") }
         }
-    }
-
-    Spacer(modifier = Modifier.height(16.dp))
-    Text(
-        text = "Controlee: fill these in from the controller's displayed session",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-
-    OutlinedTextField(
-        value = state.sessionIdInput,
-        onValueChange = viewModel::updateSessionIdInput,
-        label = { Text("Session ID") },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth()
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    OutlinedTextField(
-        value = state.sessionKeyInput,
-        onValueChange = viewModel::updateSessionKeyInput,
-        label = { Text("Session key (16 hex chars)") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = state.channelInput,
-            onValueChange = viewModel::updateChannelInput,
-            label = { Text("Channel") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f)
-        )
-        OutlinedTextField(
-            value = state.preambleInput,
-            onValueChange = viewModel::updatePreambleInput,
-            label = { Text("Preamble idx") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f)
-        )
-    }
-    Spacer(modifier = Modifier.height(8.dp))
-    OutlinedButton(onClick = viewModel::startAsControlee) {
-        Text("Start as Controlee")
     }
 }
 
 @Composable
-private fun RangingActiveContent(
-    state: UwbState,
-    onStop: () -> Unit
-) {
-    Text(
-        text = "Role: ${if (state.role == UwbRole.CONTROLLER) "Controller" else "Controlee"}",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurface
-    )
-
-    state.localSession?.let { session ->
-        Spacer(modifier = Modifier.height(4.dp))
-        if (state.role == UwbRole.CONTROLLER) {
-            Text(
-                text = "Share these with the peer's Controlee inputs:",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Text("Your address: ${session.localAddressHex}", style = MaterialTheme.typography.labelSmall)
-        if (state.role == UwbRole.CONTROLLER) {
-            Text("Session ID: ${session.sessionId}", style = MaterialTheme.typography.labelSmall)
-            Text("Session key: ${session.sessionKeyHex}", style = MaterialTheme.typography.labelSmall)
-            Text(
-                "Channel: ${session.channel}  Preamble: ${session.preambleIndex}",
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-    }
-
-    state.measurement?.let { m ->
-        Spacer(modifier = Modifier.height(8.dp))
+private fun SessionCard(state: UwbState) {
+    val session = state.localSession ?: return
+    ZdCard {
         Text(
-            text = "Distance: ${m.distanceMeters?.let { "%.2f m".format(it) } ?: "--"}" +
-                (m.azimuthDegrees?.let { "  Azimuth: %.0f°".format(it) } ?: ""),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary
+            if (state.role == UwbRole.CONTROLLER) "Share these with the other phone" else "Your address",
+            style = ZdType.Label,
+            color = ZdColors.Text
         )
+        Row {
+            ZdStat("Your address", session.localAddressHex, Modifier.weight(1f))
+            if (state.role == UwbRole.CONTROLLER) ZdStat("Session ID", "${session.sessionId}", Modifier.weight(1f))
+        }
+        if (state.role == UwbRole.CONTROLLER) {
+            ZdStat("Session key", session.sessionKeyHex)
+            Row {
+                ZdStat("Channel", "${session.channel}", Modifier.weight(1f))
+                ZdStat("Preamble", "${session.preambleIndex}", Modifier.weight(1f))
+            }
+        }
     }
+}
 
-    Spacer(modifier = Modifier.height(8.dp))
-    OutlinedButton(onClick = onStop) {
-        Text("Stop Ranging")
+@Composable
+private fun SetupCard(state: UwbState, viewModel: UwbViewModel) {
+    val number = KeyboardOptions(keyboardType = KeyboardType.Number)
+    ZdCard(verticalSpacing = 12.dp) {
+        Text("Start a session", style = ZdType.Label, color = ZdColors.Text)
+        ZdTextField(state.peerAddressInput, viewModel::updatePeerAddressInput, label = "PEER UWB ADDRESS (HEX)", placeholder = "A1B2")
+        ZdButton("Start as controller", onClick = viewModel::startAsController, modifier = Modifier.fillMaxWidth())
+        Text("Or join the other phone’s session:", style = ZdType.BodySmall, color = ZdColors.Text2)
+        ZdTextField(state.sessionIdInput, viewModel::updateSessionIdInput, label = "SESSION ID", keyboardOptions = number)
+        ZdTextField(state.sessionKeyInput, viewModel::updateSessionKeyInput, label = "SESSION KEY (16 HEX)")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ZdTextField(state.channelInput, viewModel::updateChannelInput, label = "CHANNEL", keyboardOptions = number, modifier = Modifier.weight(1f))
+            ZdTextField(state.preambleInput, viewModel::updatePreambleInput, label = "PREAMBLE", keyboardOptions = number, modifier = Modifier.weight(1f))
+        }
+        ZdButton("Start as controlee", onClick = viewModel::startAsControlee, variant = ZdButtonVariant.Secondary, modifier = Modifier.fillMaxWidth())
     }
 }

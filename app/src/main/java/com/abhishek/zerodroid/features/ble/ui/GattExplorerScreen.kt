@@ -1,64 +1,63 @@
 package com.abhishek.zerodroid.features.ble.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.BluetoothConnected
-import androidx.compose.material.icons.filled.BluetoothDisabled
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.abhishek.zerodroid.core.ui.EmptyState
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdCardShape
+import com.abhishek.zerodroid.core.ui.zd.ZdDivider
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdScanControlBar
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdStat
+import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
+import com.abhishek.zerodroid.core.ui.zd.ZdTag
 import com.abhishek.zerodroid.features.ble.domain.BleUuidDatabase
 import com.abhishek.zerodroid.features.ble.domain.CharacteristicDetailState
 import com.abhishek.zerodroid.features.ble.domain.CharacteristicValue
@@ -68,356 +67,256 @@ import com.abhishek.zerodroid.features.ble.domain.GattConnectionStatus
 import com.abhishek.zerodroid.features.ble.domain.GattServiceInfo
 import com.abhishek.zerodroid.features.ble.domain.WriteMode
 import com.abhishek.zerodroid.features.ble.viewmodel.GattViewModel
-import com.abhishek.zerodroid.ui.theme.TerminalAmber
-import com.abhishek.zerodroid.ui.theme.TerminalAmberGlow
-import com.abhishek.zerodroid.ui.theme.TerminalCyan
-import com.abhishek.zerodroid.ui.theme.TerminalCyanGlow
-import com.abhishek.zerodroid.ui.theme.TerminalGreen
-import com.abhishek.zerodroid.ui.theme.TerminalGreenGlow
-import com.abhishek.zerodroid.ui.theme.TerminalRed
-import com.abhishek.zerodroid.ui.theme.TextDim
-import com.abhishek.zerodroid.ui.theme.TextSecondary
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * GATT Explorer: connect to one BLE device and browse the services and characteristics it
+ * publishes, read and write values, subscribe to notifications, or dump everything.
+ * System back leaves a characteristic before it leaves the device.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GattExplorerScreen(
     deviceAddress: String,
     deviceName: String?,
-    onBack: () -> Unit,
     viewModel: GattViewModel = hiltViewModel()
 ) {
     val connState by viewModel.connectionState.collectAsState()
     val detailState by viewModel.detailState.collectAsState()
+    var showDump by rememberSaveable { mutableStateOf(false) }
 
     DisposableEffect(deviceAddress) {
         viewModel.connect(deviceAddress)
         onDispose { viewModel.disconnect() }
     }
 
-    if (detailState.info != null) {
-        CharacteristicDetailPanel(
-            state = detailState,
-            onBack = { viewModel.clearDetailState() },
-            onRead = { viewModel.readCharacteristic() },
-            onWrite = { viewModel.writeCharacteristic() },
-            onToggleNotify = { viewModel.toggleNotification() },
-            onWriteInputChanged = { viewModel.updateWriteInput(it) },
-            onToggleWriteMode = { viewModel.toggleWriteMode() },
-            onReadDescriptor = { viewModel.readDescriptor(it) }
+    BackHandler(enabled = detailState.info != null) { viewModel.clearDetailState() }
+
+    Column(Modifier.fillMaxSize()) {
+        ZdScanControlBar(
+            running = connState.isConnected || connState.connectionStatus == GattConnectionStatus.Connecting,
+            onStart = { viewModel.connect(deviceAddress) },
+            onStop = { viewModel.disconnect() },
+            runningLabel = when (connState.connectionStatus) {
+                GattConnectionStatus.Connecting -> "Connecting"
+                GattConnectionStatus.Disconnecting -> "Disconnecting"
+                else -> "Connected"
+            },
+            runningDetail = if (connState.isConnected) "MTU ${connState.mtu} · ${connState.services.size} services" else deviceAddress,
+            idleLabel = "Disconnected",
+            idleDetail = "${deviceName ?: deviceAddress} · tap to reconnect",
+            startLabel = "Connect",
+            stopLabel = "Disconnect"
         )
-    } else {
-        ServiceListPanel(
-            connectionState = connState,
-            deviceName = deviceName,
-            deviceAddress = deviceAddress,
-            onBack = onBack,
-            onCharacteristicSelected = { viewModel.selectCharacteristic(it) }
-        )
+
+        val info = detailState.info
+        if (info != null) {
+            CharacteristicDetail(
+                info = info,
+                state = detailState,
+                onRead = viewModel::readCharacteristic,
+                onWrite = viewModel::writeCharacteristic,
+                onToggleNotify = viewModel::toggleNotification,
+                onWriteInputChanged = viewModel::updateWriteInput,
+                onToggleWriteMode = viewModel::toggleWriteMode,
+                onReadDescriptor = viewModel::readDescriptor
+            )
+        } else {
+            ServiceList(
+                state = connState,
+                deviceName = deviceName,
+                deviceAddress = deviceAddress,
+                onDumpAll = { showDump = true },
+                onCharacteristicSelected = viewModel::selectCharacteristic
+            )
+        }
+    }
+
+    if (showDump) {
+        ModalBottomSheet(
+            onDismissRequest = { showDump = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = ZdColors.Surface,
+            scrimColor = ZdColors.Scrim,
+            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Device dump", style = ZdType.Heading, color = ZdColors.Text)
+                Text("Reads every readable characteristic into one JSON file you can copy, save or replay.", style = ZdType.BodySmall, color = ZdColors.Text2)
+                BleDeviceDumpPanel(explorer = viewModel.explorer, connectionState = connState)
+            }
+        }
     }
 }
 
-// ===== Panel 1: Service List =====
+// ── Service list ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun ServiceListPanel(
-    connectionState: GattConnectionState,
+private fun ServiceList(
+    state: GattConnectionState,
     deviceName: String?,
     deviceAddress: String,
-    onBack: () -> Unit,
+    onDumpAll: () -> Unit,
     onCharacteristicSelected: (GattCharacteristicInfo) -> Unit
 ) {
-    val expandedServices = remember { mutableStateMapOf<String, Boolean>() }
+    val expanded = remember { mutableStateMapOf<String, Boolean>() }
+
+    if (state.services.isEmpty() && state.connectionStatus == GattConnectionStatus.Disconnected) {
+        ZdStatePanel(
+            kicker = if (state.error != null) "Connection failed" else "Not connected",
+            kickerColor = if (state.error != null) ZdColors.Critical else ZdColors.Text3,
+            icon = ZdIcons.Bluetooth,
+            title = deviceName ?: deviceAddress,
+            body = state.error ?: "The device may be out of range, asleep, or already connected to another phone. Tap Connect to try again.",
+            note = "GATT is the table a BLE device publishes: services group related values, and each characteristic is one value you can read, write or subscribe to."
+        )
+        return
+    }
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Header
         item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = TerminalGreen
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = deviceName ?: "Unknown Device",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TerminalGreen,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = deviceAddress,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = TextSecondary
-                    )
-                }
-                ConnectionBadge(status = connectionState.connectionStatus)
-            }
-        }
-
-        // Connection info card
-        if (connectionState.isConnected) {
-            item {
-                TerminalCard {
-                    Text(
-                        text = "> Connection Info",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = TerminalGreen
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        InfoColumn(label = "MTU", value = "${connectionState.mtu}")
-                        InfoColumn(label = "Payload", value = "${connectionState.payloadSize} B")
-                        InfoColumn(label = "Services", value = "${connectionState.services.size}")
-                        InfoColumn(label = "Chars", value = "${connectionState.totalCharacteristics}")
-                    }
-                }
-            }
-        }
-
-        // Loading / connecting state
-        if (connectionState.connectionStatus == GattConnectionStatus.Connecting) {
-            item {
-                TerminalCard(animated = true) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = TerminalGreen
-                        )
+            ZdCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(deviceName ?: "[no name]", style = ZdType.Heading, color = ZdColors.Text)
                         Text(
-                            text = "Connecting...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TerminalGreen
+                            if (state.isConnected) "Connected · MTU ${state.mtu} · ${state.services.size} services"
+                            else deviceAddress,
+                            style = ZdType.Caption,
+                            color = ZdColors.Text3
                         )
+                    }
+                    if (state.connectionStatus == GattConnectionStatus.Connecting) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = ZdColors.Accent)
+                    } else {
+                        ZdButton("Dump all", onClick = onDumpAll, variant = ZdButtonVariant.Secondary, icon = ZdIcons.Download, enabled = state.isConnected, height = 40.dp)
+                    }
+                }
+                if (state.isConnected) {
+                    Row {
+                        ZdStat("MTU", "${state.mtu}", Modifier.weight(1f))
+                        ZdStat("Payload", "${state.payloadSize} B", Modifier.weight(1f))
+                        ZdStat("Services", "${state.services.size}", Modifier.weight(1f))
+                        ZdStat("Chars", "${state.totalCharacteristics}", Modifier.weight(1f))
                     }
                 }
             }
         }
 
-        // Error
-        connectionState.error?.let { error ->
-            item {
-                TerminalCard(glowColor = TerminalRed) {
-                    Text(
-                        text = "> Error: $error",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TerminalRed
-                    )
-                }
-            }
+        state.error?.let { error ->
+            item { ZdFootnote(error, icon = ZdIcons.Warning) }
         }
 
-        // Empty state
-        if (connectionState.services.isEmpty() && connectionState.connectionStatus == GattConnectionStatus.Disconnected) {
-            item {
-                EmptyState(
-                    icon = Icons.Default.BluetoothDisabled,
-                    title = "Not connected",
-                    subtitle = "Connection to the GATT server was lost or could not be established"
-                )
-            }
-        }
-
-        // Service cards
-        items(connectionState.services, key = { it.uuid }) { service ->
-            val isExpanded = expandedServices[service.uuid] ?: false
+        items(state.services, key = { it.uuid }) { service ->
+            val isExpanded = expanded[service.uuid] ?: (state.services.size <= 3)
             ServiceCard(
                 service = service,
                 isExpanded = isExpanded,
-                onToggleExpand = { expandedServices[service.uuid] = !isExpanded },
+                onToggle = { expanded[service.uuid] = !isExpanded },
                 onCharacteristicSelected = onCharacteristicSelected
             )
         }
 
-        item { Spacer(modifier = Modifier.height(16.dp)) }
-    }
-}
-
-@Composable
-private fun ConnectionBadge(status: GattConnectionStatus) {
-    val (color, label) = when (status) {
-        GattConnectionStatus.Connected -> TerminalGreen to "Connected"
-        GattConnectionStatus.Connecting -> TerminalAmber to "Connecting"
-        GattConnectionStatus.Disconnecting -> TerminalAmber to "Disconnecting"
-        GattConnectionStatus.Disconnected -> TerminalRed to "Disconnected"
-    }
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelSmall,
-        color = color,
-        modifier = Modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    )
-}
-
-@Composable
-private fun InfoColumn(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontFamily = FontFamily.Monospace,
-            color = TerminalGreen
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = TextDim
-        )
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ServiceCard(
-    service: GattServiceInfo,
-    isExpanded: Boolean,
-    onToggleExpand: () -> Unit,
-    onCharacteristicSelected: (GattCharacteristicInfo) -> Unit
-) {
-    TerminalCard(onClick = onToggleExpand) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = service.displayName,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = TerminalGreen
-                )
-                Text(
-                    text = BleUuidDatabase.shortenUuid(service.uuid),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = TextDim
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "${service.characteristics.size}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary
-                )
-                Icon(
-                    if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (isExpanded) "Collapse" else "Expand",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = isExpanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
-        ) {
-            Column {
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(color = TextDim.copy(alpha = 0.3f))
-                service.characteristics.forEach { char ->
-                    CharacteristicRow(
-                        characteristic = char,
-                        onClick = { onCharacteristicSelected(char) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CharacteristicRow(
-    characteristic: GattCharacteristicInfo,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = characteristic.displayName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = BleUuidDatabase.shortenUuid(characteristic.uuid),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = TextDim,
-                    fontSize = 10.sp
-                )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    characteristic.propertiesList.forEach { prop ->
-                        PropertyBadge(property = prop)
+        if (state.services.any { s -> s.characteristics.any { it.isWritable } }) {
+            item {
+                ZdCard(background = ZdColors.MediumBg, borderColor = ZdColors.MediumBorder) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(ZdIcons.Warning, contentDescription = null, tint = ZdColors.Medium, modifier = Modifier.size(18.dp))
+                        Text(
+                            "Writing to unknown characteristics can change device settings or brick firmware. Only write to devices you own.",
+                            style = ZdType.BodySmall,
+                            color = ZdColors.Text
+                        )
                     }
                 }
             }
         }
-        Icon(
-            Icons.Default.ChevronRight,
-            contentDescription = "Details",
-            tint = TextDim,
-            modifier = Modifier.size(16.dp)
-        )
     }
 }
 
 @Composable
-private fun PropertyBadge(property: String) {
-    val color = when (property) {
-        "Read" -> TerminalGreen
-        "Write", "WriteNoResp", "SignedWrite" -> TerminalAmber
-        "Notify", "Indicate" -> TerminalCyan
-        else -> TextSecondary
+private fun ServiceCard(
+    service: GattServiceInfo,
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    onCharacteristicSelected: (GattCharacteristicInfo) -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(ZdCardShape)
+            .background(ZdColors.Surface)
+            .border(1.dp, ZdColors.Border, ZdCardShape)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 60.dp)
+                .clickable(onClick = onToggle, onClickLabel = if (isExpanded) "Collapse" else "Expand")
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(service.displayName, style = ZdType.Label, color = ZdColors.Text)
+                Text(BleUuidDatabase.shortenUuid(service.uuid), style = ZdType.Path, color = ZdColors.Text3)
+            }
+            Text("${service.characteristics.size}", style = ZdType.Mono, color = ZdColors.Text3)
+            Icon(
+                if (isExpanded) ZdIcons.ChevronDown else ZdIcons.Chevron,
+                contentDescription = null,
+                tint = ZdColors.Text3,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+        AnimatedVisibility(visible = isExpanded, enter = expandVertically(), exit = shrinkVertically()) {
+            Column {
+                service.characteristics.forEach { char ->
+                    ZdDivider()
+                    CharacteristicRow(char, onClick = { onCharacteristicSelected(char) })
+                }
+            }
+        }
     }
-    Text(
-        text = property,
-        style = MaterialTheme.typography.labelSmall,
-        color = color,
-        fontSize = 9.sp,
+}
+
+@Composable
+private fun CharacteristicRow(characteristic: GattCharacteristicInfo, onClick: () -> Unit) {
+    Row(
         modifier = Modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(3.dp))
-            .padding(horizontal = 4.dp, vertical = 1.dp)
-    )
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clickable(onClick = onClick)
+            .padding(start = 26.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(characteristic.displayName, style = ZdType.BodySmall, color = ZdColors.Text)
+            Text(
+                "${BleUuidDatabase.shortenUuid(characteristic.uuid)} · ${characteristic.propertiesList.joinToString(", ") { it.lowercase() }}",
+                style = ZdType.Path,
+                color = ZdColors.Text3
+            )
+        }
+        Icon(ZdIcons.Chevron, contentDescription = null, tint = ZdColors.Text3, modifier = Modifier.size(16.dp))
+    }
 }
 
-// ===== Panel 2: Characteristic Detail =====
+// ── Characteristic detail ────────────────────────────────────────────────────
 
 @Composable
-private fun CharacteristicDetailPanel(
+private fun CharacteristicDetail(
+    info: GattCharacteristicInfo,
     state: CharacteristicDetailState,
-    onBack: () -> Unit,
     onRead: () -> Unit,
     onWrite: () -> Unit,
     onToggleNotify: () -> Unit,
@@ -425,378 +324,181 @@ private fun CharacteristicDetailPanel(
     onToggleWriteMode: () -> Unit,
     onReadDescriptor: (String) -> Unit
 ) {
-    val info = state.info ?: return
     val timeFormatter = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.US) }
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Header
         item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = TerminalGreen
-                    )
+            ZdCard {
+                Text(info.displayName, style = ZdType.Heading, color = ZdColors.Text)
+                Text(info.uuid, style = ZdType.Path, color = ZdColors.Text3)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    info.propertiesList.forEach { PropertyTag(it) }
                 }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = info.displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TerminalGreen,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = info.uuid,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = TextDim,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-
-        // Action buttons
-        item {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (info.isReadable) {
-                    Button(
-                        onClick = onRead,
-                        enabled = !state.isLoading,
-                        colors = ButtonDefaults.buttonColors(containerColor = TerminalGreen.copy(alpha = 0.2f)),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Read", color = TerminalGreen)
-                    }
-                }
-                if (info.isNotifiable || info.isIndicatable) {
-                    Button(
-                        onClick = onToggleNotify,
-                        enabled = !state.isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (state.isNotifying) TerminalCyan.copy(alpha = 0.3f)
-                            else TerminalCyan.copy(alpha = 0.15f)
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            if (state.isNotifying) Icons.Default.Notifications else Icons.Default.NotificationsOff,
-                            contentDescription = null,
-                            tint = TerminalCyan,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            if (state.isNotifying) "Stop" else if (info.isIndicatable) "Indicate" else "Notify",
-                            color = TerminalCyan
-                        )
+                if (info.isReadable || info.isNotifiable || info.isIndicatable) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 4.dp)) {
+                        if (info.isReadable) {
+                            ZdButton("Read", onClick = onRead, enabled = !state.isLoading, modifier = Modifier.weight(1f))
+                        }
+                        if (info.isNotifiable || info.isIndicatable) {
+                            ZdButton(
+                                text = if (state.isNotifying) "Stop" else if (info.isIndicatable) "Indicate" else "Notify",
+                                onClick = onToggleNotify,
+                                enabled = !state.isLoading,
+                                variant = if (state.isNotifying) ZdButtonVariant.Danger else ZdButtonVariant.Secondary,
+                                icon = ZdIcons.Bell,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Loading indicator
         if (state.isLoading) {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = TerminalGreen
-                    )
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = ZdColors.Accent)
                 }
             }
         }
 
-        // Error
-        state.error?.let { error ->
-            item {
-                TerminalCard(glowColor = TerminalRed) {
-                    Text(
-                        text = "> $error",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TerminalRed
-                    )
-                }
-            }
+        state.error?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
+
+        state.lastReadValue?.let { value ->
+            item { ValueCard(value, state.parsedDisplay, timeFormatter) }
         }
 
-        // Write section
         if (info.isWritable) {
             item {
-                TerminalCard(
-                    glowColor = TerminalAmber,
-                    glowAlpha = TerminalAmberGlow,
-                    borderColor = TerminalAmber.copy(alpha = 0.3f)
-                ) {
-                    Text(
-                        text = "> Write Value",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = TerminalAmber
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = state.writeInput,
-                            onValueChange = onWriteInputChanged,
-                            modifier = Modifier.weight(1f),
-                            placeholder = {
-                                Text(
-                                    if (state.writeMode == WriteMode.Hex) "FF 00 1A..." else "Hello...",
-                                    color = TextDim
-                                )
-                            },
-                            textStyle = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                color = TerminalAmber
-                            ),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = TerminalAmber,
-                                unfocusedBorderColor = TerminalAmber.copy(alpha = 0.3f),
-                                cursorColor = TerminalAmber
-                            )
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedButton(
-                            onClick = onToggleWriteMode,
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TerminalAmber)
-                        ) {
-                            Text(
-                                if (state.writeMode == WriteMode.Hex) "HEX" else "TXT",
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                        Button(
-                            onClick = onWrite,
-                            enabled = !state.isLoading && state.writeInput.isNotBlank(),
-                            colors = ButtonDefaults.buttonColors(containerColor = TerminalAmber.copy(alpha = 0.3f))
-                        ) {
-                            Icon(
-                                Icons.Default.Send,
-                                contentDescription = "Send",
-                                tint = TerminalAmber,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Send", color = TerminalAmber)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Value display card
-        state.lastReadValue?.let { value ->
-            item {
-                ValueDisplayCard(
-                    value = value,
-                    parsedDisplay = state.parsedDisplay,
-                    timeFormatter = timeFormatter
+                WriteCard(
+                    input = state.writeInput,
+                    mode = state.writeMode,
+                    enabled = !state.isLoading,
+                    onInput = onWriteInputChanged,
+                    onToggleMode = onToggleWriteMode,
+                    onWrite = onWrite
                 )
             }
         }
 
-        // Notification log
         if (state.notificationValues.isNotEmpty()) {
+            item { ZdSectionLabel("Notifications", trailingText = "${state.notificationValues.size}") }
             item {
-                TerminalCard(
-                    glowColor = TerminalCyan,
-                    glowAlpha = TerminalCyanGlow,
-                    borderColor = TerminalCyan.copy(alpha = 0.3f)
-                ) {
-                    Text(
-                        text = "> Notification Log (${state.notificationValues.size})",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = TerminalCyan
-                    )
-                }
-            }
-            items(
-                state.notificationValues.reversed().take(50),
-                key = { it.timestamp }
-            ) { notifValue ->
-                TerminalCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = timeFormatter.format(Date(notifValue.timestamp)),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = TextDim,
-                            fontSize = 10.sp
-                        )
-                        Text(
-                            text = "${notifValue.byteCount} B",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextDim,
-                            fontSize = 10.sp
-                        )
-                    }
-                    Text(
-                        text = notifValue.hexString,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = TerminalCyan
-                    )
-                }
-            }
-        }
-
-        // Descriptor list
-        if (info.descriptors.isNotEmpty()) {
-            item {
-                TerminalCard {
-                    Text(
-                        text = "> Descriptors (${info.descriptors.size})",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = TerminalGreen
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    info.descriptors.forEach { desc ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = desc.displayName,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = BleUuidDatabase.shortenUuid(desc.uuid),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = TextDim,
-                                    fontSize = 10.sp
-                                )
-                                // Show value if read
-                                state.descriptorValues[desc.uuid]?.let { descValue ->
-                                    Text(
-                                        text = descValue.hexString,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = TerminalGreen,
-                                        fontSize = 10.sp
-                                    )
-                                }
-                            }
-                            OutlinedButton(
-                                onClick = { onReadDescriptor(desc.uuid) },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = TerminalGreen
-                                )
-                            ) {
-                                Text("Read", style = MaterialTheme.typography.labelSmall)
-                            }
+                ZdListCard(state.notificationValues.reversed().take(50)) { v ->
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row {
+                            Text(timeFormatter.format(Date(v.timestamp)), style = ZdType.Path, color = ZdColors.Text3, modifier = Modifier.weight(1f))
+                            Text("${v.byteCount} B", style = ZdType.Path, color = ZdColors.Text3)
                         }
+                        Text(v.hexString, style = ZdType.Mono, color = ZdColors.Info)
                     }
                 }
             }
         }
 
-        item { Spacer(modifier = Modifier.height(16.dp)) }
+        if (info.descriptors.isNotEmpty()) {
+            item { ZdSectionLabel("Descriptors", trailingText = "${info.descriptors.size}") }
+            item {
+                ZdListCard(info.descriptors) { desc ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(desc.displayName, style = ZdType.BodySmall, color = ZdColors.Text)
+                            Text(BleUuidDatabase.shortenUuid(desc.uuid), style = ZdType.Path, color = ZdColors.Text3)
+                            state.descriptorValues[desc.uuid]?.let { Text(it.hexString, style = ZdType.Mono, color = ZdColors.Accent) }
+                        }
+                        ZdButton("Read", onClick = { onReadDescriptor(desc.uuid) }, variant = ZdButtonVariant.Secondary, height = 36.dp)
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun ValueDisplayCard(
-    value: CharacteristicValue,
-    parsedDisplay: String?,
-    timeFormatter: SimpleDateFormat
+private fun PropertyTag(property: String) {
+    val (fg, bg) = when (property) {
+        "Read" -> ZdColors.Accent to ZdColors.AccentBg
+        "Write", "WriteNoResp", "SignedWrite" -> ZdColors.Medium to ZdColors.MediumBg
+        "Notify", "Indicate" -> ZdColors.Info to ZdColors.InfoBg
+        else -> ZdColors.Text2 to ZdColors.Surface2
+    }
+    ZdTag(property.uppercase(), color = fg, background = bg, border = bg)
+}
+
+@Composable
+private fun ValueCard(value: CharacteristicValue, parsed: String?, timeFormatter: SimpleDateFormat) {
+    ZdCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Value", style = ZdType.Label, color = ZdColors.Text2, modifier = Modifier.weight(1f))
+            Text("${value.byteCount} B · ${timeFormatter.format(Date(value.timestamp))}", style = ZdType.Path, color = ZdColors.Text3)
+        }
+        if (parsed != null) {
+            Text(parsed, style = ZdType.Heading.copy(fontSize = ZdType.Title.fontSize), color = ZdColors.Accent)
+        }
+        ZdStat("Hex", value.hexString.ifEmpty { "—" }, valueColor = ZdColors.Text)
+        ZdStat("ASCII", value.asciiString.ifEmpty { "—" }, valueColor = ZdColors.Text2)
+    }
+}
+
+@Composable
+private fun WriteCard(
+    input: String,
+    mode: WriteMode,
+    enabled: Boolean,
+    onInput: (String) -> Unit,
+    onToggleMode: () -> Unit,
+    onWrite: () -> Unit
 ) {
-    TerminalCard(glowColor = TerminalGreen, glowAlpha = TerminalGreenGlow) {
-        Text(
-            text = "> Value",
-            style = MaterialTheme.typography.titleSmall,
-            color = TerminalGreen
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Parsed display
-        parsedDisplay?.let { parsed ->
-            Text(
-                text = parsed,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TerminalGreen
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // Hex dump
-        Text(
-            text = "HEX:",
-            style = MaterialTheme.typography.labelSmall,
-            color = TextDim
-        )
-        Text(
-            text = value.hexString,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // ASCII
-        Text(
-            text = "ASCII:",
-            style = MaterialTheme.typography.labelSmall,
-            color = TextDim
-        )
-        Text(
-            text = value.asciiString,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Metadata
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+    ZdCard(borderColor = ZdColors.MediumBorder) {
+        Text("Write value", style = ZdType.Label, color = ZdColors.Medium)
+        val shape = RoundedCornerShape(10.dp)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clip(shape)
+                .background(ZdColors.Bg)
+                .border(1.dp, ZdColors.BorderStrong, shape)
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart
         ) {
-            Text(
-                text = "${value.byteCount} bytes",
-                style = MaterialTheme.typography.labelSmall,
-                color = TextDim
-            )
-            Text(
-                text = timeFormatter.format(Date(value.timestamp)),
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                color = TextDim
+            if (input.isEmpty()) {
+                Text(if (mode == WriteMode.Hex) "FF 00 1A…" else "Hello…", style = ZdType.Mono.copy(fontSize = ZdType.Button.fontSize), color = ZdColors.Text3)
+            }
+            BasicTextField(
+                value = input,
+                onValueChange = onInput,
+                singleLine = true,
+                textStyle = ZdType.Mono.copy(fontSize = ZdType.Button.fontSize, color = ZdColors.Text),
+                cursorBrush = SolidColor(ZdColors.Accent),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Value to write" }
             )
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ZdButton(
+                if (mode == WriteMode.Hex) "HEX" else "TEXT",
+                onClick = onToggleMode,
+                variant = ZdButtonVariant.Secondary,
+                modifier = Modifier.weight(1f)
+            )
+            ZdButton(
+                "Send",
+                onClick = onWrite,
+                enabled = enabled && input.isNotBlank(),
+                icon = ZdIcons.Send,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Text("Tap HEX / TEXT to switch how your input is encoded.", style = ZdType.Caption, color = ZdColors.Text3)
     }
 }

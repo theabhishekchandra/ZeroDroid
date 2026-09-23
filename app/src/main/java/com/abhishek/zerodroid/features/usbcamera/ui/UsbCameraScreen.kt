@@ -1,35 +1,35 @@
 package com.abhishek.zerodroid.features.usbcamera.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
-import com.abhishek.zerodroid.core.ui.EmptyState
-import com.abhishek.zerodroid.core.ui.StatusIndicator
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdListRow
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
+import com.abhishek.zerodroid.core.ui.zd.ZdTag
+import com.abhishek.zerodroid.core.ui.zd.ZdTagFlow
 import com.abhishek.zerodroid.features.usbcamera.viewmodel.UsbCameraViewModel
-import com.abhishek.zerodroid.ui.theme.TerminalGreen
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
 
 @Composable
 fun UsbCameraScreen(
@@ -37,7 +37,7 @@ fun UsbCameraScreen(
 ) {
     PermissionGate(
         permissions = PermissionUtils.cameraPermissions(),
-        rationale = "Camera permission is needed to preview external USB/UVC cameras."
+        rationale = "Android treats an external camera like any camera, so the preview needs camera access."
     ) {
         UsbCameraContent(viewModel = viewModel)
     }
@@ -47,121 +47,83 @@ fun UsbCameraScreen(
 private fun UsbCameraContent(viewModel: UsbCameraViewModel) {
     val state by viewModel.state.collectAsState()
 
+    if (!state.hasUsbHost) {
+        ZdStatePanel(
+            kicker = "Not on this phone",
+            icon = ZdIcons.Usb,
+            title = "Your phone can’t host USB devices",
+            body = "USB cameras connect through USB-OTG, which needs USB host support that this phone doesn’t report."
+        )
+        return
+    }
+
+    if (state.usbVideoDevices.isEmpty() && state.camera2ExternalCameras.isEmpty()) {
+        ZdStatePanel(
+            kicker = "No camera connected",
+            icon = ZdIcons.Camera,
+            iconTint = ZdColors.Accent,
+            iconBackground = ZdColors.AccentBg,
+            title = "Plug in a USB camera",
+            body = "Most webcams and endoscopes follow the USB Video Class (UVC) standard. Connect one with a USB-OTG adapter, then rescan.",
+            primaryAction = "Rescan" to viewModel::refresh,
+            primaryIcon = ZdIcons.Refresh
+        )
+        return
+    }
+
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            StatusIndicator(isAvailable = state.hasUsbHost)
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = { viewModel.refresh() },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) { Text("Rescan") }
+        state.camera2ExternalCameras.firstOrNull()?.let { camera ->
+            item {
+                ZdCard {
+                    Text("Live preview · ${camera.deviceName}", style = ZdType.Label, color = ZdColors.Text)
+                    UsbCameraPreview(cameraId = camera.cameraId)
+                }
+            }
         }
-
-        // USB Video Class devices
         if (state.usbVideoDevices.isNotEmpty()) {
+            item { ZdSectionLabel("USB video devices", trailingText = "${state.usbVideoDevices.size}") }
             item {
-                Text(
-                    text = "> USB Video Devices (${state.usbVideoDevices.size})",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            items(state.usbVideoDevices) { device ->
-                TerminalCard {
-                    Text(
-                        text = device.deviceName,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "VID:PID ${device.vidPid}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    device.manufacturerName?.let {
-                        Text(
-                            text = "Manufacturer: $it",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    when {
-                        state.connectingVidPid == device.vidPid ->
-                            CircularProgressIndicator(modifier = Modifier.height(24.dp))
-                        state.connectedVidPid == device.vidPid -> Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Connected — interface claimed",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = TerminalGreen,
-                                modifier = Modifier.weight(1f)
-                            )
-                            OutlinedButton(onClick = { viewModel.disconnect() }) { Text("Disconnect") }
+                ZdListCard(state.usbVideoDevices) { device ->
+                    ZdListRow(
+                        title = device.deviceName,
+                        subtitle = listOfNotNull(device.manufacturerName, device.vidPid).joinToString(" · "),
+                        leading = { ZdIconTile(ZdIcons.Camera) },
+                        trailing = {
+                            when {
+                                state.connectingVidPid == device.vidPid ->
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = ZdColors.Accent)
+                                state.connectedVidPid == device.vidPid ->
+                                    ZdButton("Disconnect", onClick = viewModel::disconnect, variant = ZdButtonVariant.Danger, height = 36.dp)
+                                else ->
+                                    ZdButton("Connect", onClick = { viewModel.connect(device) }, variant = ZdButtonVariant.Secondary, height = 36.dp)
+                            }
                         }
-                        else -> Button(
-                            onClick = { viewModel.connect(device) },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) { Text("Connect") }
-                    }
+                    )
                 }
             }
         }
-
-        state.connectionError?.let { error ->
-            item {
-                Text(
-                    text = "! $error",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-
-        // Camera2 EXTERNAL cameras
         if (state.camera2ExternalCameras.isNotEmpty()) {
-            item {
-                Text(
-                    text = "> Camera2 External Cameras",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            items(state.camera2ExternalCameras) { camera ->
-                UsbCameraInfoCard(camera = camera)
-            }
-
-            // Preview for the first available external camera
-            state.camera2ExternalCameras.firstOrNull()?.let { camera ->
+            item { ZdSectionLabel("Camera2 external cameras", trailingText = "${state.camera2ExternalCameras.size}") }
+            state.camera2ExternalCameras.forEach { camera ->
                 item {
-                    TerminalCard {
-                        Text(
-                            text = "> Preview",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        UsbCameraPreview(cameraId = camera.cameraId)
+                    ZdCard {
+                        Text(camera.deviceName, style = ZdType.Label, color = ZdColors.Text)
+                        Text("Camera ID ${camera.cameraId}${camera.vidPid?.let { " · $it" } ?: ""}", style = ZdType.Caption, color = ZdColors.Text3)
+                        if (camera.resolutions.isNotEmpty()) {
+                            ZdTagFlow(camera.resolutions.take(8))
+                        } else {
+                            ZdTag("No resolutions reported")
+                        }
                     }
                 }
             }
         }
-
-        if (state.usbVideoDevices.isEmpty() && state.camera2ExternalCameras.isEmpty()) {
-            item {
-                EmptyState(
-                    icon = Icons.Default.Videocam,
-                    title = "No USB cameras detected",
-                    subtitle = "Connect a USB camera via OTG cable. Full UVC support requires native JNI libraries."
-                )
-            }
-        }
-
-        item { Spacer(modifier = Modifier.height(16.dp)) }
+        state.connectionError?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
+        item { ZdButton("Rescan", onClick = viewModel::refresh, variant = ZdButtonVariant.Ghost, icon = ZdIcons.Refresh) }
+        item { ZdFootnote("Needs a USB-OTG adapter and a UVC-class camera. Some cameras need a powered hub.") }
     }
 }

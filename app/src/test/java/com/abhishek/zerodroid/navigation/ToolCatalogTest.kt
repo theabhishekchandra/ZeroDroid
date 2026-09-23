@@ -47,10 +47,12 @@ class ToolCatalogTest {
     }
 
     @Test
-    fun `help content is keyed by tool routes`() {
-        val routes = tools.map { it.route }.toSet()
-        HelpContent.features.keys.forEach { key ->
-            assertTrue("help key '$key' is not a tool route", key in routes)
+    fun `every tool has complete help and nothing else does`() {
+        assertEquals(tools.map { it.route }.toSet(), HelpContent.features.keys)
+        HelpContent.features.forEach { (route, help) ->
+            assertTrue("$route has no steps", help.steps.isNotEmpty())
+            assertTrue("$route has no explanation", !help.howItWorks.isNullOrBlank())
+            assertTrue("$route has no facts", help.facts.isNotEmpty())
         }
     }
 }

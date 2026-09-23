@@ -67,6 +67,7 @@ object DemoData {
         const val NFC = "nfc"
         const val IR = "ir"
         const val UWB = "uwb"
+        const val WIFI = "wifi"
         const val WIFI_AWARE = "wifi_aware"
         const val SDR = "sdr"
         const val USB_CAMERA = "usb_camera"
@@ -87,7 +88,7 @@ object DemoData {
     }
 
     val supportedRoutes: Set<String> = setOf(
-        Routes.BLE, Routes.NFC, Routes.IR, Routes.UWB, Routes.WIFI_AWARE, Routes.SDR, Routes.USB_CAMERA,
+        Routes.WIFI, Routes.BLE, Routes.NFC, Routes.IR, Routes.UWB, Routes.WIFI_AWARE, Routes.SDR, Routes.USB_CAMERA,
         Routes.USB, Routes.BLUETOOTH_CLASSIC, Routes.BLUETOOTH_TRACKER, Routes.HIDDEN_CAMERA, Routes.ROGUE_AP,
         Routes.NETWORK_SCANNER, Routes.RF_BUG_SWEEPER, Routes.DEAUTH, Routes.SIGNAL_LOGGER, Routes.WARDRIVING,
         Routes.PROXIMITY_RADAR, Routes.CELL_TOWER, Routes.GPS, Routes.ALERT_CENTER
@@ -98,6 +99,19 @@ object DemoData {
 
     private fun ap(ssid: String, bssid: String, rssi: Int, freq: Int, caps: String) =
         WifiAccessPoint(ssid = ssid, bssid = bssid, rssi = rssi, frequency = freq, capabilities = caps)
+
+    // ── WiFi ────────────────────────────────────────────────────────────────
+    val wifiAccessPoints: List<WifiAccessPoint> = listOf(
+        ap("Home_5G", "A4:2B:B0:11:22:7F", -41, 5180, "[WPA3-SAE-CCMP][ESS]"),
+        ap("CafeGuest", "D8:07:B6:30:44:12", -52, 2437, "[ESS]"),
+        ap("CafeGuest", "78:8A:20:9A:10:C4", -67, 2437, "[ESS]"),
+        ap("OFFICE-2G", "00:1A:2B:77:01:9E", -63, 2462, "[WPA2-PSK-CCMP][ESS]"),
+        ap("<Hidden>", "24:0A:C4:55:66:3B", -78, 2412, "[WPA2-PSK-CCMP][ESS]"),
+        ap("TPLINK_OLD", "50:C7:BF:01:02:08", -81, 2462, "[WEP][ESS]"),
+        ap("Neighbour_5G", "F4:F2:6D:10:20:6D", -70, 5180, "[WPA2-PSK-CCMP][WPS][ESS]"),
+        ap("DIRECT-4F-HP", "FA:8F:CA:44:55:21", -74, 2437, "[WPA2-PSK-CCMP][ESS]"),
+        ap("H0me_5G", "3C:84:6A:00:11:05", -58, 5745, "[WPA2-PSK-CCMP][ESS]")
+    )
 
     // ── BLE ─────────────────────────────────────────────────────────────────
     val bleDevices: List<BleDevice> = listOf(

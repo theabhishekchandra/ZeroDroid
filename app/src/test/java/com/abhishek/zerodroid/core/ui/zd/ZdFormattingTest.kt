@@ -34,4 +34,21 @@ class ZdFormattingTest {
         assertEquals("3d ago", formatAgo(now - 3 * 86_400_000L, now))
         assertEquals("just now", formatAgo(now + 60_000, now))
     }
+
+    @Test
+    fun `auto-stop countdown rounds up and never goes negative`() {
+        assertEquals("auto-stops in 0:30", autoStopText(0, 30_000))
+        assertEquals("auto-stops in 0:18", autoStopText(12_000, 30_000))
+        assertEquals("auto-stops in 0:19", autoStopText(11_500, 30_000))
+        assertEquals("auto-stops in 4:18", autoStopText(42_000, 300_000))
+        assertEquals("auto-stops in 0:00", autoStopText(45_000, 30_000))
+    }
+
+    @Test
+    fun `spans read as seconds, minutes or hours`() {
+        assertEquals("40 s", com.abhishek.zerodroid.core.util.formatSpan(40_000))
+        assertEquals("6 min", com.abhishek.zerodroid.core.util.formatSpan(6 * 60_000L))
+        assertEquals("1 h 12 min", com.abhishek.zerodroid.core.util.formatSpan(72 * 60_000L))
+        assertEquals("2 h", com.abhishek.zerodroid.core.util.formatSpan(2 * 3_600_000L))
+    }
 }

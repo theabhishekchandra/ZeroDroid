@@ -9,29 +9,16 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -39,6 +26,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import com.abhishek.zerodroid.core.ui.zd.ZdCardShape
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdTabs
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
 import com.abhishek.zerodroid.features.camera.domain.QrScannerAnalyzer
@@ -53,39 +46,24 @@ fun QrScannerScreen(
     val state by viewModel.state.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected = state.activeTab == QrScreenTab.SCAN,
-                onClick = { viewModel.setActiveTab(QrScreenTab.SCAN) },
-                label = { Text("Scan", style = MaterialTheme.typography.labelMedium) },
-                leadingIcon = { Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    selectedLabelColor = MaterialTheme.colorScheme.primary,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.primary
-                )
-            )
-            FilterChip(
-                selected = state.activeTab == QrScreenTab.GENERATE,
-                onClick = { viewModel.setActiveTab(QrScreenTab.GENERATE) },
-                label = { Text("Generate", style = MaterialTheme.typography.labelMedium) },
-                leadingIcon = { Icon(imageVector = Icons.Default.QrCode2, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    selectedLabelColor = MaterialTheme.colorScheme.primary,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.primary
-                )
-            )
-        }
+        ZdTabs(
+            tabs = listOf("Scan", "Create", "History ${state.scanHistory.size}"),
+            selectedIndex = if (state.activeTab == QrScreenTab.SCAN) 0 else 1,
+            onSelect = {
+                when (it) {
+                    0 -> viewModel.setActiveTab(QrScreenTab.SCAN)
+                    1 -> viewModel.setActiveTab(QrScreenTab.GENERATE)
+                    else -> viewModel.toggleHistory()
+                }
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
 
         when (state.activeTab) {
             QrScreenTab.SCAN -> {
                 PermissionGate(
                     permissions = PermissionUtils.cameraPermissions(),
-                    rationale = "Camera permission is needed to scan QR codes and barcodes."
+                    rationale = "Scanning uses the camera preview. Nothing is recorded or uploaded."
                 ) { QrScannerContent(viewModel) }
             }
             QrScreenTab.GENERATE -> QrGeneratorPanel(viewModel = viewModel)
@@ -105,8 +83,11 @@ private fun QrScannerContent(viewModel: QrScannerViewModel) {
     val executor = remember { Executors.newSingleThreadExecutor() }
     DisposableEffect(Unit) { onDispose { executor.shutdown() } }
 
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Box(modifier = Modifier.fillMaxWidth().height(300.dp)) {
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().height(300.dp).clip(ZdCardShape)) {
             AndroidView(
                 factory = { ctx ->
                     val previewView = PreviewView(ctx).apply {
@@ -130,15 +111,7 @@ private fun QrScannerContent(viewModel: QrScannerViewModel) {
                 modifier = Modifier.fillMaxSize()
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "> QR Scanner", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Button(onClick = { viewModel.toggleHistory() },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) { Text("History (${state.scanHistory.size})") }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
         state.lastScan?.let { result -> QrResultCard(result = result) }
-            ?: Text(text = "Point camera at a QR code or barcode", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ?: ZdFootnote("Point the camera at a QR code or barcode. Links are checked for phishing signs before you open anything.")
     }
 }
