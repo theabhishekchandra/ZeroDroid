@@ -89,9 +89,9 @@ class HciSnoopViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     isLoading = false,
-                    error = "Could not load HCI snoop log from known paths.\n$lastError\n\n" +
-                            "Use \"Select File\" to manually pick a btsnoop_hci.log file, " +
-                            "or ensure Bluetooth HCI snoop log is enabled in Developer Options."
+                    error = "No HCI log found on this phone ($lastError). Most phones only let you get it " +
+                            "from a bug report: enable the snoop log in Developer options, take a bug report, " +
+                            "then use \"Choose a log file\"."
                 )
             }
         }

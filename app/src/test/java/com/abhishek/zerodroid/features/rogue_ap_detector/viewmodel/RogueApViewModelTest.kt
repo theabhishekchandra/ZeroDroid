@@ -26,6 +26,7 @@ class RogueApViewModelTest {
 
     private val scanner = mockk<WifiScanner>()
     private val alerts = mockk<AlertCenterRepository>(relaxed = true)
+    private val settings = com.abhishek.zerodroid.core.prefs.AppSettings(com.abhishek.zerodroid.core.testing.FakeSharedPreferences())
 
     // The analyzer treats the strongest AP of an SSID as legitimate, so the open twin is weaker.
     // The SSID avoids the "common public SSID" list so only the evil-twin rule fires.
@@ -33,7 +34,7 @@ class RogueApViewModelTest {
     private val twin = WifiAccessPoint("Chandra-Lab", "DE:AD:BE:EF:00:01", -70, 2437, "[ESS]")
     private val neighbour = WifiAccessPoint("Neighbour", "11:22:33:44:55:66", -70, 2437, "[WPA3-SAE-CCMP][ESS]")
 
-    private fun vm() = RogueApViewModel(scanner, alerts, DemoDataBus())
+    private fun vm() = RogueApViewModel(scanner, alerts, mockk<com.abhishek.zerodroid.core.sessions.SessionRepository>(relaxed = true), settings, DemoDataBus())
 
     @Test
     fun `an open twin of a secured network is flagged and counted`() {
@@ -82,6 +83,7 @@ class RogueApViewModelTest {
         vm.addKnownSsid("   ")
 
         assertEquals(setOf("HomeNet"), vm.state.value.knownSsids)
+        assertEquals(setOf("HomeNet"), settings.trustedNetworks.value)
         vm.removeKnownSsid("HomeNet")
         assertTrue(vm.state.value.knownSsids.isEmpty())
     }

@@ -1,14 +1,16 @@
 package com.abhishek.zerodroid.features.dashboard
 
-import android.content.SharedPreferences
 import android.os.Build
-import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abhishek.zerodroid.core.alerts.AlertCenterRepository
+import com.abhishek.zerodroid.core.alerts.AlertSeverity
 import com.abhishek.zerodroid.core.alerts.UnifiedAlert
-import com.abhishek.zerodroid.core.di.DashboardPrefs
 import com.abhishek.zerodroid.core.hardware.HardwareChecker
+import com.abhishek.zerodroid.core.prefs.LastUsedFeature
+import com.abhishek.zerodroid.core.prefs.ToolPreferences
+import com.abhishek.zerodroid.navigation.ToolCatalog
+import com.abhishek.zerodroid.navigation.ToolInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -44,15 +46,53 @@ data class HardwareItem(
     val isAvailable: Boolean
 )
 
-data class LastUsedFeature(
-    val route: String,
-    val title: String
+/** Counts behind the Home status card. */
+data class AlertSummary(
+    val total: Int = 0,
+    val critical: Int = 0,
+    val high: Int = 0,
+    val medium: Int = 0,
+    val low: Int = 0,
+    val latestTimestamp: Long? = null
+) {
+    val worst: AlertSeverity?
+        get() = when {
+            critical > 0 -> AlertSeverity.CRITICAL
+            high > 0 -> AlertSeverity.HIGH
+            medium > 0 -> AlertSeverity.MEDIUM
+            low > 0 -> AlertSeverity.LOW
+            else -> null
+        }
+
+    /** "1 high · 2 medium", most severe first, skipping empty levels. */
+    val breakdown: String
+        get() = listOf(critical to "critical", high to "high", medium to "medium", low to "low")
+            .filter { it.first > 0 }
+            .joinToString(" · ") { "${it.first} ${it.second}" }
+
+    companion object {
+        fun from(alerts: List<UnifiedAlert>) = AlertSummary(
+            total = alerts.size,
+            critical = alerts.count { it.severity == AlertSeverity.CRITICAL },
+            high = alerts.count { it.severity == AlertSeverity.HIGH },
+            medium = alerts.count { it.severity == AlertSeverity.MEDIUM },
+            low = alerts.count { it.severity == AlertSeverity.LOW },
+            latestTimestamp = alerts.maxOfOrNull { it.timestamp }
+        )
+    }
+}
+
+/** How many catalog tools this phone can run, and what hardware it lacks. */
+data class ToolSupport(
+    val supported: Int,
+    val total: Int,
+    val missing: List<String>
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val hardwareChecker: HardwareChecker,
-    @DashboardPrefs private val prefs: SharedPreferences,
+    private val toolPreferences: ToolPreferences,
     alertCenterRepository: AlertCenterRepository,
     val deviceInfo: DeviceInfo
 ) : ViewModel() {
@@ -60,8 +100,15 @@ class DashboardViewModel @Inject constructor(
     private val _hardwareItems = MutableStateFlow<List<HardwareItem>>(emptyList())
     val hardwareItems: StateFlow<List<HardwareItem>> = _hardwareItems.asStateFlow()
 
-    private val _lastUsedFeature = MutableStateFlow<LastUsedFeature?>(null)
-    val lastUsedFeature: StateFlow<LastUsedFeature?> = _lastUsedFeature.asStateFlow()
+    val lastUsedFeature: StateFlow<LastUsedFeature?> = toolPreferences.lastUsed
+
+    val pinnedTools: StateFlow<List<ToolInfo>> = toolPreferences.pinnedRoutes
+        .map { routes -> routes.mapNotNull { ToolCatalog.forRoute(it) } }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            toolPreferences.pinnedRoutes.value.mapNotNull { ToolCatalog.forRoute(it) }
+        )
 
     val recentAlerts: StateFlow<List<UnifiedAlert>> = alertCenterRepository.alerts
         .map { it.take(RECENT_ALERTS_LIMIT) }
@@ -70,6 +117,12 @@ class DashboardViewModel @Inject constructor(
     val totalAlertCount: StateFlow<Int> = alertCenterRepository.alerts
         .map { it.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val alertSummary: StateFlow<AlertSummary> = alertCenterRepository.alerts
+        .map { alerts -> AlertSummary.from(alerts.filter { it.isOpen }) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AlertSummary())
+
+    val toolSupport: ToolSupport
 
     init {
         _hardwareItems.value = listOf(
@@ -89,24 +142,24 @@ class DashboardViewModel @Inject constructor(
             HardwareItem("Barometer", hardwareChecker.hasBarometer())
         )
 
-        val route = prefs.getString(KEY_LAST_ROUTE, null)
-        val title = prefs.getString(KEY_LAST_TITLE, null)
-        if (route != null && title != null) {
-            _lastUsedFeature.value = LastUsedFeature(route, title)
-        }
+        val requirements = ToolCatalog.tools.map { it.requirement }
+        val unsupported = requirements.filterNot { it.isAvailable(hardwareChecker) }
+        val missing = unsupported.mapNotNull { it.missingLabel }.distinct() +
+            if (hardwareChecker.hasBarometer()) emptyList() else listOf("no barometer")
+        toolSupport = ToolSupport(
+            supported = requirements.size - unsupported.size,
+            total = requirements.size,
+            missing = missing
+        )
     }
 
     fun saveLastUsed(route: String, title: String) {
-        prefs.edit {
-            putString(KEY_LAST_ROUTE, route)
-            putString(KEY_LAST_TITLE, title)
-        }
-        _lastUsedFeature.value = LastUsedFeature(route, title)
+        toolPreferences.recordOpened(route, title)
     }
 
+    fun togglePin(route: String): Boolean = toolPreferences.togglePin(route)
+
     companion object {
-        private const val KEY_LAST_ROUTE = "last_used_route"
-        private const val KEY_LAST_TITLE = "last_used_title"
         private const val RECENT_ALERTS_LIMIT = 3
     }
 }

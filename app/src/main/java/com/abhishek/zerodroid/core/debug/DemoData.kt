@@ -53,6 +53,9 @@ import com.abhishek.zerodroid.features.uwb.domain.UwbRangingMeasurement
 import com.abhishek.zerodroid.features.uwb.domain.UwbSessionConfig
 import com.abhishek.zerodroid.features.wardriving.domain.WardrivingRecord
 import com.abhishek.zerodroid.features.wardriving.domain.WardrivingStats
+import com.abhishek.zerodroid.core.sessions.ItemKind
+import com.abhishek.zerodroid.core.sessions.Session
+import com.abhishek.zerodroid.core.sessions.SessionItem
 import com.abhishek.zerodroid.features.wifi.domain.WifiAccessPoint
 import com.abhishek.zerodroid.features.wifiaware.domain.WifiAwarePeer
 
@@ -67,6 +70,7 @@ object DemoData {
         const val NFC = "nfc"
         const val IR = "ir"
         const val UWB = "uwb"
+        const val WIFI = "wifi"
         const val WIFI_AWARE = "wifi_aware"
         const val SDR = "sdr"
         const val USB_CAMERA = "usb_camera"
@@ -84,13 +88,14 @@ object DemoData {
         const val CELL_TOWER = "cell_tower"
         const val GPS = "gps"
         const val ALERT_CENTER = "alert_center"
+        const val SESSIONS = "sessions"
     }
 
     val supportedRoutes: Set<String> = setOf(
-        Routes.BLE, Routes.NFC, Routes.IR, Routes.UWB, Routes.WIFI_AWARE, Routes.SDR, Routes.USB_CAMERA,
+        Routes.WIFI, Routes.BLE, Routes.NFC, Routes.IR, Routes.UWB, Routes.WIFI_AWARE, Routes.SDR, Routes.USB_CAMERA,
         Routes.USB, Routes.BLUETOOTH_CLASSIC, Routes.BLUETOOTH_TRACKER, Routes.HIDDEN_CAMERA, Routes.ROGUE_AP,
         Routes.NETWORK_SCANNER, Routes.RF_BUG_SWEEPER, Routes.DEAUTH, Routes.SIGNAL_LOGGER, Routes.WARDRIVING,
-        Routes.PROXIMITY_RADAR, Routes.CELL_TOWER, Routes.GPS, Routes.ALERT_CENTER
+        Routes.PROXIMITY_RADAR, Routes.CELL_TOWER, Routes.GPS, Routes.ALERT_CENTER, Routes.SESSIONS
     )
 
     private val now: Long get() = System.currentTimeMillis()
@@ -98,6 +103,42 @@ object DemoData {
 
     private fun ap(ssid: String, bssid: String, rssi: Int, freq: Int, caps: String) =
         WifiAccessPoint(ssid = ssid, bssid = bssid, rssi = rssi, frequency = freq, capabilities = caps)
+
+    // ── WiFi ────────────────────────────────────────────────────────────────
+    val wifiAccessPoints: List<WifiAccessPoint> = listOf(
+        ap("Home_5G", "A4:2B:B0:11:22:7F", -41, 5180, "[WPA3-SAE-CCMP][ESS]"),
+        ap("CafeGuest", "D8:07:B6:30:44:12", -52, 2437, "[ESS]"),
+        ap("CafeGuest", "78:8A:20:9A:10:C4", -67, 2437, "[ESS]"),
+        ap("OFFICE-2G", "00:1A:2B:77:01:9E", -63, 2462, "[WPA2-PSK-CCMP][ESS]"),
+        ap("<Hidden>", "24:0A:C4:55:66:3B", -78, 2412, "[WPA2-PSK-CCMP][ESS]"),
+        ap("TPLINK_OLD", "50:C7:BF:01:02:08", -81, 2462, "[WEP][ESS]"),
+        ap("Neighbour_5G", "F4:F2:6D:10:20:6D", -70, 5180, "[WPA2-PSK-CCMP][WPS][ESS]"),
+        ap("DIRECT-4F-HP", "FA:8F:CA:44:55:21", -74, 2437, "[WPA2-PSK-CCMP][ESS]"),
+        ap("H0me_5G", "3C:84:6A:00:11:05", -58, 5745, "[WPA2-PSK-CCMP][ESS]")
+    )
+
+    // ── Sessions ────────────────────────────────────────────────────────────
+    /** Two sweeps of the same room three days apart, so Compare has something to show. */
+    val sessions: List<Pair<Session, List<SessionItem>>>
+        get() {
+            val base = listOf(
+                SessionItem("A4:2B:B0:11:22:7F", "Home_5G", ItemKind.WIFI, -48, "WPA2 · ch 36"),
+                SessionItem("00:1A:2B:77:01:9E", "OFFICE-2G", ItemKind.WIFI, -63, "WPA2 · ch 11"),
+                SessionItem("C8:47:8C:12:34:56", "Mi Band 7", ItemKind.BLE, -64, "Fitness"),
+                SessionItem("5C:F3:70:A1:02:9B", "Galaxy Buds2 Pro", ItemKind.BLE, -52, "Audio")
+            )
+            val later = listOf(
+                SessionItem("A4:2B:B0:11:22:7F", "Home_5G", ItemKind.WIFI, -41, "WPA2 · ch 36"),
+                SessionItem("00:1A:2B:77:01:9E", "OFFICE-2G", ItemKind.WIFI, -62, "WPA3 · ch 11"),
+                SessionItem("5C:F3:70:A1:02:9B", "Galaxy Buds2 Pro", ItemKind.BLE, -50, "Audio"),
+                SessionItem("E4:B0:21:77:0A:1F", "Tile Pro", ItemKind.TRACKER, -56, "Tracker", flagged = true),
+                SessionItem("78:8A:20:9A:10:C4", "CafeGuest", ItemKind.WIFI, -67, "Open · ch 6", flagged = true)
+            )
+            return listOf(
+                Session("demo-a", "rf_bug_sweeper", "RF bug sweep", "Living room", now - 3 * 24 * 60 * MIN, now - 3 * 24 * 60 * MIN + 2 * MIN, base.size, 0, "${base.size} devices · clean") to base,
+                Session("demo-b", "rf_bug_sweeper", "RF bug sweep", "Living room", now - 20 * MIN, now - 18 * MIN, later.size, 2, "${later.size} devices · 2 findings") to later
+            )
+        }
 
     // ── BLE ─────────────────────────────────────────────────────────────────
     val bleDevices: List<BleDevice> = listOf(
@@ -165,6 +206,12 @@ object DemoData {
     )
 
     // ── Bluetooth Classic ───────────────────────────────────────────────────
+    /** SDP services per demo device, as the real query would resolve them. */
+    val classicServices: Map<String, List<String>> = mapOf(
+        "F8:DF:15:22:9A:01" to listOf("0000110b", "0000110e", "0000111e", "00001200"),
+        "98:D3:31:F5:B2:7C" to listOf("00001101")
+    )
+
     val classicDevices: List<ClassicBluetoothDevice> = listOf(
         ClassicBluetoothDevice("JBL Flip 6", "F8:DF:15:22:9A:01", -52, 12, "Audio/Video", "Loudspeaker", isPaired = true),
         ClassicBluetoothDevice("HC-05", "98:D3:31:F5:B2:7C", -66, 10, "Uncategorized", ""),

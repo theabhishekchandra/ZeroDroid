@@ -1,10 +1,9 @@
 package com.abhishek.zerodroid.core.debug
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import com.abhishek.zerodroid.core.ui.zd.ZdIconButton
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -25,11 +24,10 @@ class DemoDataViewModel @Inject constructor(private val bus: DemoDataBus) : View
 fun DemoDataAction(route: String?) {
     if (!BuildConfig.DEBUG || route == null || route !in DemoData.supportedRoutes) return
     val viewModel: DemoDataViewModel = hiltViewModel()
-    IconButton(onClick = { viewModel.request(route) }) {
-        Icon(
-            imageVector = Icons.Default.Science,
-            contentDescription = "Load demo data",
-            tint = MaterialTheme.colorScheme.tertiary
-        )
-    }
+    ZdIconButton(
+        icon = Icons.Outlined.Science,
+        contentDescription = "Load demo data",
+        onClick = { viewModel.request(route) },
+        tint = ZdColors.Medium
+    )
 }

@@ -11,4 +11,12 @@
     <string name="ethical_accept">I Agree</string>
     <string name="ethical_decline">Decline</string>
 
+    <string name="widget_status_label">ZeroDroid status</string>
+    <string name="widget_status_description">Open alerts, your last sweep and one-tap Sweep, Trackers and WiFi</string>
+    <string name="widget_tracker_label">Tracker check</string>
+    <string name="widget_tracker_description">Your last tracker check; tap to run another</string>
+    <string name="tile_sweep">Room sweep</string>
+    <string name="tile_tracker">Tracker check</string>
+    <string name="tile_watch">Watch rules</string>
+    <string name="tile_nfc">Read NFC</string>
 </resources>

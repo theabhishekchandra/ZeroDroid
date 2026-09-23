@@ -9,12 +9,17 @@ enum class SecurityType(val label: String) {
     UNKNOWN("Unknown");
 
     companion object {
+        /** Flags that say nothing about encryption; a network with only these is open. */
+        private val NON_SECURITY_FLAGS = setOf("ESS", "WPS", "IBSS", "BSS", "P2P", "MESH")
+        private val FLAG = Regex("""\[([^\]]*)]""")
+
         fun fromCapabilities(capabilities: String): SecurityType = when {
             "WPA3" in capabilities -> WPA3
             "WPA2" in capabilities || "RSN" in capabilities -> WPA2
             "WPA" in capabilities -> WPA
             "WEP" in capabilities -> WEP
-            capabilities.isBlank() || "[ESS]" == capabilities -> OPEN
+            // Only non-security flags (e.g. [WPS][ESS]) means no encryption at all.
+            FLAG.findAll(capabilities).all { it.groupValues[1] in NON_SECURITY_FLAGS } -> OPEN
             else -> UNKNOWN
         }
     }

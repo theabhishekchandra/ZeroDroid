@@ -31,7 +31,7 @@ class BleViewModelTest {
 
     private fun vm(available: Boolean = true): BleViewModel {
         every { repository.isAvailable } returns available
-        return BleViewModel(repository, DemoDataBus())
+        return BleViewModel(repository, mockk<com.abhishek.zerodroid.core.sessions.SessionRepository>(relaxed = true), DemoDataBus())
     }
 
     @Test

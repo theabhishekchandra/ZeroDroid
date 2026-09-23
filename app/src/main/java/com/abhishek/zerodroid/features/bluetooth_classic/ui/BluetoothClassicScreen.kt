@@ -1,12 +1,14 @@
 package com.abhishek.zerodroid.features.bluetooth_classic.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,19 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,28 +24,49 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
 import com.abhishek.zerodroid.core.permission.PermissionGate
 import com.abhishek.zerodroid.core.permission.PermissionUtils
-import com.abhishek.zerodroid.core.ui.EmptyState
-import com.abhishek.zerodroid.core.ui.ScanningIndicator
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdButtonVariant
+import com.abhishek.zerodroid.core.ui.zd.ZdCardShape
+import com.abhishek.zerodroid.core.ui.zd.ZdChip
+import com.abhishek.zerodroid.core.ui.zd.ZdChipRow
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIconButton
+import com.abhishek.zerodroid.core.ui.zd.ZdIconTile
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdListCard
+import com.abhishek.zerodroid.core.ui.zd.ZdListRow
+import com.abhishek.zerodroid.core.ui.zd.ZdScanControlBar
+import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
+import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
+import com.abhishek.zerodroid.core.ui.zd.ZdTag
+import com.abhishek.zerodroid.core.ui.zd.ZdTextField
+import com.abhishek.zerodroid.core.ui.zd.ZdToolScanBar
+import com.abhishek.zerodroid.features.bluetooth_classic.domain.BluetoothClassicState
 import com.abhishek.zerodroid.features.bluetooth_classic.domain.ClassicBluetoothDevice
 import com.abhishek.zerodroid.features.bluetooth_classic.domain.SppState
 import com.abhishek.zerodroid.features.bluetooth_classic.domain.TerminalLine
 import com.abhishek.zerodroid.features.bluetooth_classic.viewmodel.BluetoothClassicViewModel
-import com.abhishek.zerodroid.ui.theme.TerminalAmber
-import com.abhishek.zerodroid.ui.theme.TerminalCyan
-import com.abhishek.zerodroid.ui.theme.TerminalGreen
-import com.abhishek.zerodroid.ui.theme.TerminalRed
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+private const val DISCOVERY_MS = 12_000L
+
+/** OBD-II / ELM327 commands offered as one-tap chips in the serial terminal. */
+private val quickCommands = listOf("ATZ", "ATI", "ATSP0", "0100", "010C", "010D")
 
 @Composable
 fun BluetoothClassicScreen(
@@ -64,7 +74,7 @@ fun BluetoothClassicScreen(
 ) {
     PermissionGate(
         permissions = PermissionUtils.blePermissions(),
-        rationale = "Bluetooth permission is needed to scan for nearby Classic Bluetooth devices."
+        rationale = "Android asks for these before any app can find or connect to Bluetooth devices."
     ) {
         BluetoothClassicContent(viewModel = viewModel)
     }
@@ -74,6 +84,7 @@ fun BluetoothClassicScreen(
 private fun BluetoothClassicContent(viewModel: BluetoothClassicViewModel) {
     val state by viewModel.state.collectAsState()
     val sppState by viewModel.sppState.collectAsState()
+    val sdp by viewModel.sdp.collectAsState()
 
     // Discovery is released in the background; the SPP link survives until the screen closes.
     HardwareLifecycleEffect(
@@ -85,440 +96,216 @@ private fun BluetoothClassicContent(viewModel: BluetoothClassicViewModel) {
         onDispose { viewModel.disconnectSpp() }
     }
 
-    var showTerminal by remember { mutableStateOf(false) }
-    var selectedDevice by remember { mutableStateOf<String?>(null) }
+    var terminalFor by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Show terminal when SPP connects, hide when disconnected
-    LaunchedEffect(sppState.isConnected) {
-        if (sppState.isConnected) {
-            showTerminal = true
-        }
-    }
-
-    if (showTerminal && selectedDevice != null) {
-        SppTerminalPanel(
-            sppState = sppState,
-            deviceAddress = selectedDevice!!,
-            onSend = { viewModel.sendSpp(it) },
-            onDisconnect = {
+    val target = terminalFor
+    val sdpAddress = sdp.address
+    if (target == null && sdpAddress != null) {
+        BackHandler(onBack = viewModel::closeServices)
+        SdpServicePanel(
+            state = sdp,
+            onQuery = viewModel::querySdp,
+            onOpenTerminal = {
+                viewModel.closeServices()
+                terminalFor = sdpAddress
+                viewModel.connectSpp(sdpAddress)
+            },
+            onClose = viewModel::closeServices
+        )
+    } else if (target != null) {
+        val device = (state.pairedDevices + state.discoveredDevices).firstOrNull { it.address == target }
+        SppTerminal(
+            state = sppState,
+            title = device?.displayName ?: target,
+            onSend = viewModel::sendSpp,
+            onReconnect = { viewModel.connectSpp(target) },
+            onClose = {
                 viewModel.disconnectSpp()
-                showTerminal = false
-                selectedDevice = null
+                terminalFor = null
             }
         )
     } else {
-        DeviceScanContent(
+        DeviceList(
             state = state,
             sppState = sppState,
-            onToggleScan = { viewModel.toggleScan() },
-            onConnectSpp = { address ->
-                selectedDevice = address
+            onStart = viewModel::startScan,
+            onStop = viewModel::stopScan,
+            onConnect = { address ->
+                terminalFor = address
                 viewModel.connectSpp(address)
-            }
+            },
+            onOpenServices = viewModel::openServices
         )
     }
 }
 
 @Composable
-private fun DeviceScanContent(
-    state: com.abhishek.zerodroid.features.bluetooth_classic.domain.BluetoothClassicState,
+private fun DeviceList(
+    state: BluetoothClassicState,
     sppState: SppState,
-    onToggleScan: () -> Unit,
-    onConnectSpp: (String) -> Unit
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onConnect: (String) -> Unit,
+    onOpenServices: (ClassicBluetoothDevice) -> Unit
 ) {
-    val totalDevices = state.pairedDevices.size + state.discoveredDevices.size
+    Column(Modifier.fillMaxSize()) {
+        ZdToolScanBar(
+            running = state.isScanning,
+            onStart = onStart,
+            onStop = onStop,
+            verb = "Discovering",
+            runningNote = "Inquiry",
+            autoStopMs = DISCOVERY_MS,
+            idleNote = if (state.discoveredDevices.isEmpty()) "Finds devices in pairing mode" else "Results kept"
+        )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Header row with count and scan button
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (state.isScanning) {
-                    ScanningIndicator(
-                        isScanning = true,
-                        label = "$totalDevices devices found"
-                    )
-                } else {
-                    Text(
-                        text = "> $totalDevices devices found",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                if (state.isScanning) {
-                    OutlinedButton(
-                        onClick = onToggleScan,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("Stop")
-                    }
-                } else {
-                    Button(
-                        onClick = onToggleScan,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("Scan")
-                    }
-                }
-            }
-        }
-
-        // Error message
-        state.error?.let { error ->
-            item {
-                Text(
-                    text = error,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-
-        // SPP connecting indicator
-        if (sppState.isConnecting) {
-            item {
-                Text(
-                    text = "> Connecting via SPP...",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TerminalAmber,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-        }
-
-        // SPP error
-        sppState.error?.let { error ->
-            item {
-                Text(
-                    text = error,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TerminalRed
-                )
-            }
-        }
-
-        // Paired devices section
-        if (state.pairedDevices.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "> PAIRED DEVICES (${state.pairedDevices.size})",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TerminalAmber,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            items(state.pairedDevices, key = { "paired_${it.address}" }) { device ->
-                ClassicDeviceItem(
-                    device = device,
-                    onConnectSpp = { onConnectSpp(device.address) }
-                )
-            }
-        }
-
-        // Discovered devices section
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "> DISCOVERED DEVICES (${state.discoveredDevices.size})",
-                style = MaterialTheme.typography.labelMedium,
-                color = TerminalCyan,
-                fontFamily = FontFamily.Monospace
-            )
-        }
-
-        if (state.discoveredDevices.isEmpty() && !state.isScanning) {
-            item {
-                EmptyState(
-                    icon = Icons.Default.Bluetooth,
-                    title = "No devices discovered",
-                    subtitle = "Tap Scan to search for nearby Classic Bluetooth devices"
-                )
-            }
-        }
-
-        items(state.discoveredDevices, key = { "disc_${it.address}" }) { device ->
-            ClassicDeviceItem(
-                device = device,
-                onConnectSpp = { onConnectSpp(device.address) }
-            )
-        }
-
-        item { Spacer(modifier = Modifier.height(16.dp)) }
-    }
-}
-
-@Composable
-private fun ClassicDeviceItem(
-    device: ClassicBluetoothDevice,
-    onConnectSpp: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val signalColor = when {
-        device.rssi >= -60 -> TerminalGreen
-        device.rssi >= -80 -> TerminalAmber
-        device.rssi == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
-        else -> TerminalRed
-    }
-
-    TerminalCard(modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = device.displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = device.majorClass,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TerminalCyan,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier
-                            .padding(horizontal = 6.dp, vertical = 1.dp)
-                    )
-                }
+            state.error?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
+            sppState.error?.let { item { ZdFootnote(it, icon = ZdIcons.Warning) } }
 
-                Text(
-                    text = device.address,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = FontFamily.Monospace
-                )
+            if (state.pairedDevices.isNotEmpty()) {
+                item { ZdSectionLabel("Paired", trailingText = "${state.pairedDevices.size}") }
+                item { ZdListCard(state.pairedDevices) { DeviceRow(it, onConnect, onOpenServices) } }
+            }
 
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (device.rssi != 0) {
-                        Text(
-                            text = "${device.rssi} dBm",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = signalColor
-                        )
-                    }
-                    Text(
-                        text = device.bondStateLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (device.isPaired) TerminalGreen else MaterialTheme.colorScheme.onSurfaceVariant
+            item { ZdSectionLabel("Discovered now", trailingText = "${state.discoveredDevices.size}") }
+            if (state.discoveredDevices.isEmpty()) {
+                item {
+                    ZdStatePanel(
+                        kicker = if (state.isScanning) "Discovering" else "Ready",
+                        icon = ZdIcons.Bluetooth,
+                        iconTint = ZdColors.Accent,
+                        iconBackground = ZdColors.AccentBg,
+                        title = "Speakers, cars and serial modules",
+                        body = "Classic Bluetooth finds devices that are in pairing mode. Connect to one with a Serial Port (SPP) service to open a text terminal, e.g. an OBD-II car adapter or HC-05 module.",
+                        primaryAction = if (state.isScanning) null else "Start discovery" to onStart,
+                        primaryIcon = ZdIcons.Play,
+                        fullScreen = false
                     )
                 }
-            }
-
-            OutlinedButton(
-                onClick = onConnectSpp,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = TerminalCyan
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Link,
-                    contentDescription = "Connect SPP",
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-                Text("SPP", style = MaterialTheme.typography.labelSmall)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SppTerminalPanel(
-    sppState: SppState,
-    deviceAddress: String,
-    onSend: (String) -> Unit,
-    onDisconnect: () -> Unit
-) {
-    var inputText by remember { mutableStateOf("") }
-    val listState = rememberLazyListState()
-
-    // Auto-scroll to bottom when new lines arrive
-    LaunchedEffect(sppState.lines.size) {
-        if (sppState.lines.isNotEmpty()) {
-            listState.animateScrollToItem(sppState.lines.size - 1)
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-    ) {
-        // Terminal header
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "> SPP TERMINAL",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = TerminalGreen,
-                    fontFamily = FontFamily.Monospace
-                )
-                Text(
-                    text = deviceAddress,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-            OutlinedButton(
-                onClick = onDisconnect,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = TerminalRed
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Disconnect",
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-                Text("Disconnect")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Connection status
-        if (sppState.isConnecting) {
-            Text(
-                text = "> Connecting...",
-                style = MaterialTheme.typography.bodySmall,
-                color = TerminalAmber,
-                fontFamily = FontFamily.Monospace
-            )
-        }
-
-        sppState.error?.let { error ->
-            Text(
-                text = "> ERROR: $error",
-                style = MaterialTheme.typography.bodySmall,
-                color = TerminalRed,
-                fontFamily = FontFamily.Monospace
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-
-        // Terminal output area
-        TerminalCard(
-            modifier = Modifier.weight(1f)
-        ) {
-            if (sppState.lines.isEmpty()) {
-                Text(
-                    text = if (sppState.isConnected) "> Connected. Waiting for data..." else "> No data yet.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = FontFamily.Monospace
-                )
             } else {
-                LazyColumn(
-                    state = listState,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    items(sppState.lines.size) { index ->
-                        TerminalLineItem(line = sppState.lines[index])
-                    }
-                }
+                item { ZdListCard(state.discoveredDevices) { DeviceRow(it, onConnect, onOpenServices) } }
+                item { ZdFootnote("Tap a device to see the services it offers.") }
             }
+            item { ZdFootnote("Only connect to devices you own: serial commands can change a device’s settings.") }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Input row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                modifier = Modifier.weight(1f),
-                placeholder = {
-                    Text(
-                        text = "Type command...",
-                        fontFamily = FontFamily.Monospace
-                    )
-                },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = FontFamily.Monospace,
-                    color = TerminalGreen
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = TerminalGreen,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    cursorColor = TerminalGreen
-                ),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(
-                    onSend = {
-                        if (inputText.isNotBlank()) {
-                            onSend(inputText)
-                            inputText = ""
-                        }
-                    }
-                ),
-                enabled = sppState.isConnected
-            )
-            IconButton(
-                onClick = {
-                    if (inputText.isNotBlank()) {
-                        onSend(inputText)
-                        inputText = ""
-                    }
-                },
-                enabled = sppState.isConnected && inputText.isNotBlank()
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Send",
-                    tint = if (sppState.isConnected && inputText.isNotBlank()) TerminalGreen
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
 @Composable
-private fun TerminalLineItem(line: TerminalLine) {
-    val prefix = if (line.isOutgoing) "> " else "< "
-    val color = if (line.isOutgoing) TerminalGreen else TerminalCyan
-
-    Text(
-        text = "$prefix${line.text}",
-        style = MaterialTheme.typography.bodySmall,
-        color = color,
-        fontFamily = FontFamily.Monospace
+private fun DeviceRow(device: ClassicBluetoothDevice, onConnect: (String) -> Unit, onOpenServices: (ClassicBluetoothDevice) -> Unit) {
+    ZdListRow(
+        onClick = { onOpenServices(device) },
+        title = device.displayName,
+        subtitle = listOfNotNull(
+            device.majorClass.takeIf { it.isNotBlank() },
+            device.minorClass.takeIf { it.isNotBlank() },
+            device.rssi.takeIf { it != 0 }?.let { "$it dBm" }
+        ).joinToString(" · ").ifEmpty { device.address },
+        leading = { ZdIconTile(ZdIcons.Bluetooth) },
+        trailing = {
+            if (device.isPaired) ZdTag("PAIRED", color = ZdColors.Accent, background = ZdColors.AccentBg, border = ZdColors.AccentBorder)
+            else ZdTag("NEW")
+            ZdButton("SPP", onClick = { onConnect(device.address) }, variant = ZdButtonVariant.Secondary, height = 36.dp)
+        }
     )
+}
+
+private val lineTime = SimpleDateFormat("HH:mm:ss", Locale.US)
+
+@Composable
+private fun SppTerminal(
+    state: SppState,
+    title: String,
+    onSend: (String) -> Unit,
+    onReconnect: () -> Unit,
+    onClose: () -> Unit
+) {
+    var input by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    val send: (String) -> Unit = { text ->
+        if (text.isNotBlank() && state.isConnected) {
+            onSend(text)
+            input = ""
+        }
+    }
+
+    LaunchedEffect(state.lines.size) {
+        if (state.lines.isNotEmpty()) listState.animateScrollToItem(state.lines.size - 1)
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        ZdScanControlBar(
+            running = state.isConnected || state.isConnecting,
+            onStart = onReconnect,
+            onStop = onClose,
+            runningLabel = if (state.isConnecting) "Connecting" else "Connected · SPP",
+            runningDetail = title,
+            idleLabel = "Disconnected",
+            idleDetail = "Log kept · tap to reconnect",
+            startLabel = "Connect",
+            stopLabel = "Disconnect"
+        )
+
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = ZdType.Label, color = ZdColors.Text, modifier = Modifier.weight(1f))
+            ZdIconButton(ZdIcons.Close, contentDescription = "Close terminal", onClick = onClose)
+        }
+
+        ZdChipRow {
+            quickCommands.forEach { cmd -> ZdChip(cmd, selected = false, onClick = { send(cmd) }) }
+        }
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(16.dp)
+                .clip(ZdCardShape)
+                .background(ZdColors.Bg)
+                .border(1.dp, ZdColors.Border, ZdCardShape),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (state.lines.isEmpty()) {
+                item {
+                    Text(
+                        if (state.isConnected) "Connected. Send a command or wait for data." else "No data yet.",
+                        style = ZdType.Mono,
+                        color = ZdColors.Text3
+                    )
+                }
+            }
+            items(state.lines) { TerminalLineRow(it) }
+            state.error?.let { item { Text(it, style = ZdType.Mono, color = ZdColors.Critical) } }
+        }
+
+        ZdTextField(
+            value = input,
+            onValueChange = { input = it },
+            label = "COMMAND",
+            placeholder = "Type a command…",
+            enabled = state.isConnected,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(onSend = { send(input) }),
+            trailing = {
+                ZdIconButton(ZdIcons.Send, contentDescription = "Send", onClick = { send(input) }, tint = if (state.isConnected && input.isNotBlank()) ZdColors.Accent else ZdColors.Text3)
+            },
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+        )
+    }
+}
+
+@Composable
+private fun TerminalLineRow(line: TerminalLine) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(lineTime.format(Date(line.timestamp)), style = ZdType.Path, color = ZdColors.Text3, modifier = Modifier.width(60.dp))
+        Text(if (line.isOutgoing) ">" else "<", style = ZdType.Mono, color = if (line.isOutgoing) ZdColors.Accent else ZdColors.Info)
+        Text(line.text, style = ZdType.Mono, color = if (line.isOutgoing) ZdColors.Text else ZdColors.Info)
+    }
 }

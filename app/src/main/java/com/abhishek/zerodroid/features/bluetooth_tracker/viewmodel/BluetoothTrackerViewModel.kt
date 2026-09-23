@@ -11,6 +11,9 @@ import com.abhishek.zerodroid.features.bluetooth_tracker.domain.TrackerIdentifie
 import com.abhishek.zerodroid.features.bluetooth_tracker.domain.TrackerScanState
 import com.abhishek.zerodroid.features.bluetooth_tracker.domain.TrackerType
 import com.abhishek.zerodroid.features.bluetooth_tracker.domain.TrackingRisk
+import com.abhishek.zerodroid.core.sessions.ItemKind
+import com.abhishek.zerodroid.core.sessions.SessionItem
+import com.abhishek.zerodroid.core.sessions.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -29,8 +32,13 @@ import com.abhishek.zerodroid.core.debug.observeDemoRequests
 class BluetoothTrackerViewModel @Inject constructor(
     private val bleScanner: BleScanner,
     private val alertCenterRepository: AlertCenterRepository,
+    private val sessions: SessionRepository,
     private val demoBus: DemoDataBus
 ) : ViewModel() {
+
+    /** When the current run started; null when no run is in progress. */
+    private var runStartedAt: Long? = null
+
 
     private val _state = MutableStateFlow(TrackerScanState())
     val state: StateFlow<TrackerScanState> = _state.asStateFlow()
@@ -56,6 +64,7 @@ class BluetoothTrackerViewModel @Inject constructor(
         scanStartTime = System.currentTimeMillis()
 
         _state.value = TrackerScanState(isScanning = true)
+        runStartedAt = System.currentTimeMillis()
 
         // Timer to update scan duration every second
         timerJob = viewModelScope.launch {
@@ -136,6 +145,10 @@ class BluetoothTrackerViewModel @Inject constructor(
     }
 
     fun stopScan() {
+        runStartedAt?.let { started ->
+            runStartedAt = null
+            recordSession(started)
+        }
         scanJob?.cancel()
         timerJob?.cancel()
         scanJob = null
@@ -189,6 +202,28 @@ class BluetoothTrackerViewModel @Inject constructor(
 
     companion object {
         private const val MIN_ALERT_RANK = 2 // MEDIUM or HIGH only
+    }
+
+    private fun recordSession(startedAt: Long) {
+        val trackers = _state.value.trackers
+        val risky = trackers.count { it.risk == TrackingRisk.HIGH || it.risk == TrackingRisk.MEDIUM }
+        sessions.recordInBackground(
+            tool = "bluetooth_tracker",
+            title = "Tracker watch",
+            startedAt = startedAt,
+            items = trackers.map { t ->
+                SessionItem(
+                    key = t.address,
+                    label = t.displayName,
+                    kind = ItemKind.TRACKER,
+                    rssi = t.rssi,
+                    detail = "${t.risk.label} · seen ${t.seenCount}×",
+                    flagged = t.risk == TrackingRisk.HIGH || t.risk == TrackingRisk.MEDIUM
+                )
+            },
+            summary = "${trackers.size} tracker${if (trackers.size == 1) "" else "s"} nearby" +
+                if (risky > 0) " · $risky may be following you" else ""
+        )
     }
 
     override fun onCleared() {

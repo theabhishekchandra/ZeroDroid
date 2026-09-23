@@ -6,6 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.abhishek.zerodroid.features.network_scanner.domain.NetworkScanState
 import com.abhishek.zerodroid.features.network_scanner.domain.NetworkVulnerabilityScanner
 import com.abhishek.zerodroid.features.network_scanner.domain.VulnerabilityLevel
+import com.abhishek.zerodroid.core.sessions.ItemKind
+import com.abhishek.zerodroid.core.sessions.SessionItem
+import com.abhishek.zerodroid.core.sessions.SessionRepository
+import com.abhishek.zerodroid.features.network_scanner.domain.NetworkDevice
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -22,8 +26,13 @@ import com.abhishek.zerodroid.core.debug.observeDemoRequests
 class NetworkScannerViewModel @Inject constructor(
     private val scanner: NetworkVulnerabilityScanner,
     @ApplicationContext private val appContext: Context,
+    private val sessions: SessionRepository,
     private val demoBus: DemoDataBus
 ) : ViewModel() {
+
+    /** When the current run started; null when no run is in progress. */
+    private var runStartedAt: Long? = null
+
 
     private val _state = MutableStateFlow(NetworkScanState())
     val state: StateFlow<NetworkScanState> = _state.asStateFlow()
@@ -41,6 +50,7 @@ class NetworkScannerViewModel @Inject constructor(
             return
         }
 
+        runStartedAt = System.currentTimeMillis()
         scanJob = viewModelScope.launch {
             _state.value = NetworkScanState(
                 isScanning = true,
@@ -71,6 +81,10 @@ class NetworkScannerViewModel @Inject constructor(
                     criticalCount = criticalCount,
                     scanPhase = "Complete"
                 )
+                runStartedAt?.let { started ->
+                    runStartedAt = null
+                    recordSession(started, subnet, devices)
+                }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(
@@ -133,6 +147,24 @@ class NetworkScannerViewModel @Inject constructor(
 
     fun clearError() {
         _state.value = _state.value.copy(error = null)
+    }
+
+    private fun recordSession(startedAt: Long, subnet: String, devices: List<NetworkDevice>) {
+        sessions.recordInBackground(
+            tool = "network_scanner",
+            title = "Network scan",
+            startedAt = startedAt,
+            items = devices.map { d ->
+                SessionItem(
+                    key = d.ip,
+                    label = d.hostname ?: d.ip,
+                    kind = ItemKind.LAN,
+                    detail = "${d.deviceType} · ${d.openPorts.joinToString(",") { it.port.toString() }.ifEmpty { "no open ports" }}",
+                    flagged = d.vulnerabilities.isNotEmpty()
+                )
+            },
+            summary = "${devices.size} devices on $subnet.* · ${devices.sumOf { it.vulnerabilities.size }} findings"
+        )
     }
 
     override fun onCleared() {

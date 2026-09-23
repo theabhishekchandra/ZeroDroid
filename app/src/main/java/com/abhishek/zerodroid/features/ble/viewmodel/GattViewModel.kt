@@ -4,7 +4,6 @@ import android.bluetooth.BluetoothGattCharacteristic
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abhishek.zerodroid.features.ble.domain.CharacteristicDetailState
-import com.abhishek.zerodroid.features.ble.domain.CharacteristicValue
 import com.abhishek.zerodroid.features.ble.domain.GattCharacteristicInfo
 import com.abhishek.zerodroid.features.ble.domain.GattConnectionState
 import com.abhishek.zerodroid.features.ble.domain.GattExplorer
@@ -20,7 +19,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class GattViewModel @Inject constructor(
-    private val explorer: GattExplorer
+    /** Exposed for the full-device dump panel, which drives the same connection. */
+    val explorer: GattExplorer
 ) : ViewModel() {
 
     val connectionState: StateFlow<GattConnectionState> = explorer.connectionState

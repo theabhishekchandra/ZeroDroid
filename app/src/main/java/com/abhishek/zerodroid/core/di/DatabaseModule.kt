@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.abhishek.zerodroid.core.database.AppDatabase
 import com.abhishek.zerodroid.core.database.dao.AlertDao
+import com.abhishek.zerodroid.core.database.dao.SessionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,4 +25,7 @@ object DatabaseModule {
 
     @Provides
     fun provideAlertDao(database: AppDatabase): AlertDao = database.alertDao()
+
+    @Provides
+    fun provideSessionDao(database: AppDatabase): SessionDao = database.sessionDao()
 }

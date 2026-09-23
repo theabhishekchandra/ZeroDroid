@@ -1,26 +1,28 @@
 package com.abhishek.zerodroid.features.nfc.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.abhishek.zerodroid.core.ui.TerminalCard
+import com.abhishek.zerodroid.core.ui.zd.ZdButton
+import com.abhishek.zerodroid.core.ui.zd.ZdCard
+import com.abhishek.zerodroid.core.ui.zd.ZdChip
+import com.abhishek.zerodroid.core.ui.zd.ZdFootnote
+import com.abhishek.zerodroid.core.ui.zd.ZdIcons
+import com.abhishek.zerodroid.core.ui.zd.ZdTextField
 import com.abhishek.zerodroid.features.nfc.domain.WriteResult
+import com.abhishek.zerodroid.ui.theme.ZdColors
+import com.abhishek.zerodroid.ui.theme.ZdType
 
+/** Write a Text or URL NDEF record to the last tag held to the phone. */
 @Composable
 fun NfcWritePanel(
     writeResult: WriteResult?,
@@ -28,66 +30,35 @@ fun NfcWritePanel(
     onWriteUri: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var textValue by remember { mutableStateOf("") }
-    var uriValue by remember { mutableStateOf("") }
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = MaterialTheme.colorScheme.primary,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-    )
+    var isUrl by rememberSaveable { mutableStateOf(true) }
+    var value by rememberSaveable { mutableStateOf("") }
 
-    TerminalCard(modifier = modifier) {
-        Text(
-            text = "> Write NDEF",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = "Tap an NFC tag to write",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = textValue,
-            onValueChange = { textValue = it },
-            label = { Text("Text content") },
-            colors = fieldColors,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Button(
-            onClick = { onWriteText(textValue) },
-            enabled = textValue.isNotBlank(),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Write Text") }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = uriValue,
-            onValueChange = { uriValue = it },
-            label = { Text("URI") },
-            placeholder = { Text("https://") },
-            colors = fieldColors,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Button(
-            onClick = { onWriteUri(uriValue) },
-            enabled = uriValue.isNotBlank(),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Write URI") }
-
-        writeResult?.let { result ->
-            Spacer(modifier = Modifier.height(4.dp))
-            val (text, color) = when (result) {
-                is WriteResult.Success -> "Written successfully" to MaterialTheme.colorScheme.primary
-                is WriteResult.Error -> result.message to MaterialTheme.colorScheme.error
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ZdCard(verticalSpacing = 12.dp) {
+            Text("Record type", style = ZdType.Label, color = ZdColors.Text2)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ZdChip("URL", selected = isUrl, onClick = { isUrl = true })
+                ZdChip("Text", selected = !isUrl, onClick = { isUrl = false })
             }
-            Text(text = text, style = MaterialTheme.typography.labelSmall, color = color)
+            ZdTextField(
+                value = value,
+                onValueChange = { value = it },
+                label = if (isUrl) "URL" else "TEXT",
+                placeholder = if (isUrl) "https://example.com" else "Hello from ZeroDroid"
+            )
+            Text("${value.toByteArray().size} bytes", style = ZdType.Path, color = ZdColors.Text3)
+            ZdButton(
+                "Write to tag",
+                onClick = { if (isUrl) onWriteUri(value) else onWriteText(value) },
+                enabled = value.isNotBlank(),
+                icon = ZdIcons.Nfc,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        when (writeResult) {
+            WriteResult.Success -> ZdFootnote("Written. Tap the tag with another phone to check it.", icon = ZdIcons.Check)
+            is WriteResult.Error -> ZdFootnote(writeResult.message, icon = ZdIcons.Warning)
+            null -> ZdFootnote("Hold a writable tag to the back of the phone first, then tap Write while it’s still there.")
         }
     }
 }
