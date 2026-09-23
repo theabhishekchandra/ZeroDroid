@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.abhishek.zerodroid.core.lifecycle.HardwareLifecycleEffect
-import com.abhishek.zerodroid.core.ui.TerminalCard
 import com.abhishek.zerodroid.features.emf_mapper.domain.EmfLevel
 import com.abhishek.zerodroid.features.emf_mapper.domain.EmfMapperState
 import com.abhishek.zerodroid.features.emf_mapper.domain.EmfReading
@@ -67,6 +66,7 @@ import com.abhishek.zerodroid.core.ui.zd.ZdScanControlBar
 import com.abhishek.zerodroid.core.ui.zd.ZdSectionLabel
 import com.abhishek.zerodroid.core.ui.zd.ZdStatePanel
 import com.abhishek.zerodroid.core.ui.zd.formatElapsed
+import com.abhishek.zerodroid.ui.theme.JetBrainsMono
 import com.abhishek.zerodroid.ui.theme.ZdColors
 import com.abhishek.zerodroid.ui.theme.ZdType
 import java.util.Locale
@@ -169,10 +169,9 @@ private fun EmfGauge(reading: EmfReading?) {
     val level = reading?.level ?: EmfLevel.NORMAL
     val levelColor = levelColor(level)
 
-    TerminalCard(
-        glowColor = levelColor,
-        borderColor = levelColor,
-        animated = level == EmfLevel.HIGH || level == EmfLevel.EXTREME
+    ZdCard(
+        borderColor = if (level == EmfLevel.NORMAL) ZdColors.Border else levelColor.copy(alpha = 0.5f),
+        verticalSpacing = 0.dp
     ) {
         Column(
             modifier = Modifier
@@ -309,7 +308,7 @@ private fun EmfGauge(reading: EmfReading?) {
                         style = TextStyle(
                             color = TextSecondary,
                             fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = JetBrainsMono
                         )
                     )
                     drawText(
@@ -348,7 +347,7 @@ private fun EmfGauge(reading: EmfReading?) {
             Text(
                 text = "%.1f".format(magnitude) + " \u00B5T",
                 color = levelColor,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = JetBrainsMono,
                 fontWeight = FontWeight.Bold,
                 fontSize = 32.sp
             )
@@ -359,7 +358,7 @@ private fun EmfGauge(reading: EmfReading?) {
             Text(
                 text = level.name,
                 color = levelColor,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = JetBrainsMono,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier
@@ -372,7 +371,7 @@ private fun EmfGauge(reading: EmfReading?) {
                 Text(
                     text = "\u25B6 OFF SCALE \u2014 dial maxes at 200\u00B5T",
                     color = TerminalRed,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = JetBrainsMono,
                     fontSize = 10.sp
                 )
             }
@@ -386,15 +385,9 @@ private fun EmfGauge(reading: EmfReading?) {
 
 @Composable
 private fun AxisReadout(reading: EmfReading) {
-    TerminalCard {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "> 3-Axis Readout",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
+    ZdCard(verticalSpacing = 0.dp) {
+        Column {
+            Text("3-axis readout · µT", style = ZdType.Label, color = ZdColors.Text2)
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -417,7 +410,7 @@ private fun AxisBar(label: String, value: Float, maxValue: Float, color: Color) 
         Text(
             text = label,
             color = color,
-            fontFamily = FontFamily.Monospace,
+            fontFamily = JetBrainsMono,
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp,
             modifier = Modifier.width(16.dp)
@@ -446,7 +439,7 @@ private fun AxisBar(label: String, value: Float, maxValue: Float, color: Color) 
         Text(
             text = "%+.1f".format(value),
             color = TextPrimary,
-            fontFamily = FontFamily.Monospace,
+            fontFamily = JetBrainsMono,
             fontSize = 11.sp,
             modifier = Modifier.width(52.dp)
         )
@@ -459,15 +452,9 @@ private fun AxisBar(label: String, value: Float, maxValue: Float, color: Color) 
 
 @Composable
 private fun HistoryGraph(history: List<EmfReading>) {
-    TerminalCard {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = "> History (last 30s)",
-                color = TerminalGreen,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
+    ZdCard(verticalSpacing = 0.dp) {
+        Column {
+            Text("Last 30 seconds", style = ZdType.Label, color = ZdColors.Text2)
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -571,25 +558,25 @@ private fun HistoryGraph(history: List<EmfReading>) {
                 Text(
                     text = "-30s",
                     color = TextSecondary,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = JetBrainsMono,
                     fontSize = 9.sp
                 )
                 Text(
                     text = "-20s",
                     color = TextSecondary,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = JetBrainsMono,
                     fontSize = 9.sp
                 )
                 Text(
                     text = "-10s",
                     color = TextSecondary,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = JetBrainsMono,
                     fontSize = 9.sp
                 )
                 Text(
                     text = "now",
                     color = TextSecondary,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = JetBrainsMono,
                     fontSize = 9.sp
                 )
             }
