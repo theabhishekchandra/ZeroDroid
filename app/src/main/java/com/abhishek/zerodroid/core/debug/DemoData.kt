@@ -206,6 +206,12 @@ object DemoData {
     )
 
     // ── Bluetooth Classic ───────────────────────────────────────────────────
+    /** SDP services per demo device, as the real query would resolve them. */
+    val classicServices: Map<String, List<String>> = mapOf(
+        "F8:DF:15:22:9A:01" to listOf("0000110b", "0000110e", "0000111e", "00001200"),
+        "98:D3:31:F5:B2:7C" to listOf("00001101")
+    )
+
     val classicDevices: List<ClassicBluetoothDevice> = listOf(
         ClassicBluetoothDevice("JBL Flip 6", "F8:DF:15:22:9A:01", -52, 12, "Audio/Video", "Loudspeaker", isPaired = true),
         ClassicBluetoothDevice("HC-05", "98:D3:31:F5:B2:7C", -66, 10, "Uncategorized", ""),
