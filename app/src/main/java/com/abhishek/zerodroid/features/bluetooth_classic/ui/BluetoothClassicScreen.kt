@@ -1,5 +1,6 @@
 package com.abhishek.zerodroid.features.bluetooth_classic.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -83,6 +84,7 @@ fun BluetoothClassicScreen(
 private fun BluetoothClassicContent(viewModel: BluetoothClassicViewModel) {
     val state by viewModel.state.collectAsState()
     val sppState by viewModel.sppState.collectAsState()
+    val sdp by viewModel.sdp.collectAsState()
 
     // Discovery is released in the background; the SPP link survives until the screen closes.
     HardwareLifecycleEffect(
@@ -97,7 +99,20 @@ private fun BluetoothClassicContent(viewModel: BluetoothClassicViewModel) {
     var terminalFor by rememberSaveable { mutableStateOf<String?>(null) }
 
     val target = terminalFor
-    if (target != null) {
+    val sdpAddress = sdp.address
+    if (target == null && sdpAddress != null) {
+        BackHandler(onBack = viewModel::closeServices)
+        SdpServicePanel(
+            state = sdp,
+            onQuery = viewModel::querySdp,
+            onOpenTerminal = {
+                viewModel.closeServices()
+                terminalFor = sdpAddress
+                viewModel.connectSpp(sdpAddress)
+            },
+            onClose = viewModel::closeServices
+        )
+    } else if (target != null) {
         val device = (state.pairedDevices + state.discoveredDevices).firstOrNull { it.address == target }
         SppTerminal(
             state = sppState,
@@ -118,7 +133,8 @@ private fun BluetoothClassicContent(viewModel: BluetoothClassicViewModel) {
             onConnect = { address ->
                 terminalFor = address
                 viewModel.connectSpp(address)
-            }
+            },
+            onOpenServices = viewModel::openServices
         )
     }
 }
@@ -129,7 +145,8 @@ private fun DeviceList(
     sppState: SppState,
     onStart: () -> Unit,
     onStop: () -> Unit,
-    onConnect: (String) -> Unit
+    onConnect: (String) -> Unit,
+    onOpenServices: (ClassicBluetoothDevice) -> Unit
 ) {
     Column(Modifier.fillMaxSize()) {
         ZdToolScanBar(
@@ -152,7 +169,7 @@ private fun DeviceList(
 
             if (state.pairedDevices.isNotEmpty()) {
                 item { ZdSectionLabel("Paired", trailingText = "${state.pairedDevices.size}") }
-                item { ZdListCard(state.pairedDevices) { DeviceRow(it, onConnect) } }
+                item { ZdListCard(state.pairedDevices) { DeviceRow(it, onConnect, onOpenServices) } }
             }
 
             item { ZdSectionLabel("Discovered now", trailingText = "${state.discoveredDevices.size}") }
@@ -171,7 +188,8 @@ private fun DeviceList(
                     )
                 }
             } else {
-                item { ZdListCard(state.discoveredDevices) { DeviceRow(it, onConnect) } }
+                item { ZdListCard(state.discoveredDevices) { DeviceRow(it, onConnect, onOpenServices) } }
+                item { ZdFootnote("Tap a device to see the services it offers.") }
             }
             item { ZdFootnote("Only connect to devices you own: serial commands can change a device’s settings.") }
         }
@@ -179,8 +197,9 @@ private fun DeviceList(
 }
 
 @Composable
-private fun DeviceRow(device: ClassicBluetoothDevice, onConnect: (String) -> Unit) {
+private fun DeviceRow(device: ClassicBluetoothDevice, onConnect: (String) -> Unit, onOpenServices: (ClassicBluetoothDevice) -> Unit) {
     ZdListRow(
+        onClick = { onOpenServices(device) },
         title = device.displayName,
         subtitle = listOfNotNull(
             device.majorClass.takeIf { it.isNotBlank() },

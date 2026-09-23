@@ -3,6 +3,7 @@ package com.abhishek.zerodroid.navigation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abhishek.zerodroid.core.alerts.AlertCenterRepository
+import com.abhishek.zerodroid.core.notify.DeepLinkBus
 import com.abhishek.zerodroid.core.prefs.AppSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AppShellViewModel @Inject constructor(
     alertCenterRepository: AlertCenterRepository,
-    settings: AppSettings
+    settings: AppSettings,
+    val deepLinks: DeepLinkBus
 ) : ViewModel() {
 
     val onboardingDone: StateFlow<Boolean> = settings.onboardingDone

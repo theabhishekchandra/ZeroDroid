@@ -67,6 +67,7 @@ class SearchViewModel @Inject constructor(
             SearchAction("Hidden camera sweep", "WiFi makers, BLE and magnetic", sweepRunRoute(SweepPreset.HIDDEN_CAMERA, ""), "spy cam"),
             SearchAction("Review alerts", "Open and resolved alerts", ZeroDroidScreen.AlertCenter.route, "threat triage"),
             SearchAction("Compare or export sessions", "Saved scans on this phone", ZeroDroidScreen.Sessions.route, "history pdf csv json report"),
+            SearchAction("Watch rules", "Background alerts for trackers, rogue APs, 2G", "rules", "background notify follow automation"),
             SearchAction("Settings", "Privacy, retention, trusted networks", ZeroDroidScreen.Settings.route, "preferences delete data redact")
         )
     }

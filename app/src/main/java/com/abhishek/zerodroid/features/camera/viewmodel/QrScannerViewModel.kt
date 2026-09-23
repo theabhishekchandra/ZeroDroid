@@ -133,10 +133,11 @@ class QrScannerViewModel @Inject constructor(
             )
         }
 
+        // Dark on light with a white margin: the image gets saved and shared, and every scanner reads it.
         val bitmap = QrGenerator.generate(
             content = content, size = 512,
-            foregroundColor = "#00FF41".toColorInt(),
-            backgroundColor = "#1A1A1A".toColorInt()
+            foregroundColor = "#0B0D0C".toColorInt(),
+            backgroundColor = android.graphics.Color.WHITE
         )
 
         _generatorState.value = if (bitmap != null) {

@@ -72,6 +72,8 @@ internal fun AlertSource.route(): String = when (this) {
     AlertSource.GPS_SPOOF -> ZeroDroidScreen.GpsSpoofDetector.route
     AlertSource.HIDDEN_CAMERA -> ZeroDroidScreen.HiddenCamera.route
     AlertSource.BLUETOOTH_TRACKER -> ZeroDroidScreen.BluetoothTracker.route
+    AlertSource.CELL -> ZeroDroidScreen.CellTower.route
+    AlertSource.BLE_WATCH -> ZeroDroidScreen.Ble.route
 }
 
 private val timeFormat = SimpleDateFormat("HH:mm", Locale.US)
